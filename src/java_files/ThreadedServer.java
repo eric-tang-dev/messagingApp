@@ -69,10 +69,12 @@ public class ThreadedServer extends Thread implements SharedResources {
                         // this if you're implementing it, but that's probably how I'd do it)
                         // WARNING: I'd probably make a method that gets called that way we can just
                         // individually test each method in the test cases
+                        createUser(input, writer);
                     }
                     case "GETUSER" -> {
                         // WARNING: I'd probably make a method that gets called that way we can just
                         // individually test each method in the test cases
+                        getUser(input, writer);
                     }
                     case "DELETEUSER" -> {
                         // WARNING: I'd probably make a method that gets called that way we can just
@@ -134,6 +136,107 @@ public class ThreadedServer extends Thread implements SharedResources {
             writer.flush();
             System.out.println("Wrote back to client");
             return null;
+        }
+    }
+
+    public void createUser(String input, PrintWriter writer) {
+        // Ensure the input format is correct, e.g., "CREATEUSER:USERNAME:PASSWORD:EMAIL:BIO"
+        if (!input.startsWith("CREATEUSER:")) {
+            writer.write("FAILED:Invalid command format");
+            writer.println();
+            writer.flush();
+        }
+        // ACTION:USERNAME:PASSWORD:EMAIL:BIO
+        // Extract the username and password from the input string
+        String username = input.substring(input.indexOf(":") + 1);
+        username = username.substring(0, username.indexOf(":"));
+        String password = input.substring(input.indexOf(":") + 1);
+        password = password.substring(password.indexOf(":") + 1);
+        password = password.substring(0, password.indexOf(":"));
+        String email = input.substring(input.indexOf(":") + 1);
+        email = email.substring(email.indexOf(":") + 1);
+        email = email.substring(email.indexOf(":") + 1);
+        email = email.substring(0, email.indexOf(":"));
+        String bio = input.substring(input.indexOf(":") + 1);
+        bio = bio.substring(bio.indexOf(":") + 1);
+        bio = bio.substring(bio.indexOf(":") + 1);
+        bio = bio.substring(bio.indexOf(":") + 1);
+
+        // Attempt to create a new user using the username and password
+        UserManager manager = new UserManager();
+        String userCreated = manager.createUser(username, password, email, bio, null); // Assuming there's a createUser method
+
+        // Respond to the client depending on whether the user creation was successful or not
+        if (userCreated.contains("successfully")) {
+            writer.write("SUCCESS:" + username); // Send back the created username
+            writer.println();
+            writer.flush();
+            System.out.println("Wrote back to client: Success");
+
+        }
+        if (userCreated.contains("already exists")) {
+            writer.write("FAILURE:" + username + "Username already exists"); // Send back the created username
+            writer.println();
+            writer.flush();
+            System.out.println("Wrote back to client: Already Exists");
+
+        }
+        if (userCreated.contains("Failed")) {
+            writer.write("FAILURE:" + username); // Send back the created username
+            writer.println();
+            writer.flush();
+            System.out.println(userCreated);
+
+        } else {
+            //I'm not sure how to do this last else statement for the final exception.
+            writer.write("FAILURE" + username + "An exception was thrown");
+            writer.println();
+            writer.flush();
+            System.out.println("Wrote back to client: Exception");
+
+        }
+    }
+
+    public void getUser(String input, PrintWriter writer) {
+        UserManager manager = new UserManager();
+        String userReturn;
+        String username = input.substring(input.indexOf(":") + 1);
+        try {
+            // Check if the username is provided
+            if (username == null || username.trim().isEmpty()) {
+                writer.write("FAILED:Username cannot be empty");
+                writer.println();
+                writer.flush();
+                return; // Exit the method if the username is invalid
+            }
+
+            userReturn = manager.getUser(username);
+
+            if (userReturn.contains("Data")) {
+                // If the user data is retrieved successfully, send the response back to the client
+                writer.write("SUCCESS:" + userReturn); // Send back user data
+                writer.println();
+                writer.flush();
+                System.out.println(userReturn);
+            } if (userReturn.contains("found")) {
+                writer.write("FAILED:User " + username + " could not be found.");
+                writer.println();
+                writer.flush();
+                System.out.println("User not found: " + username);
+            } else {
+                // Handle other errors (e.g., 500 server error)
+                writer.write("FAILED:Failed to retrieve user. Status code: " + userReturn);
+                writer.println();
+                writer.flush();
+                System.out.println(userReturn);
+            }
+        } catch (Exception e) {
+            // Catch any exceptions, print the stack trace, and send a failure message to the client
+            e.printStackTrace();
+            writer.write("FAILED:An exception occurred while retrieving user data");
+            writer.println();
+            writer.flush();
+            System.out.println("Exception caught while retrieving user data");
         }
     }
 }

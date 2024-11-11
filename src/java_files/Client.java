@@ -8,13 +8,14 @@ import java.net.*;
 public class Client {
     // Hardcoding in the starting port number of the server
     static int portNum = 4242;
-    String serverReturn;
-    String clientInput;
     public static void main(String[] args) {
+//        Application.launch(MainGUI.class, args);
         Client client1 = new Client();
         //Client client2 = new Client();
         client1.newClient();
         //client2.newClient();
+//        MainGUI mainGUI = new MainGUI();
+//        mainGUI.showLogin();
     }
     public void newClient() {
         String serverReturn;
@@ -37,13 +38,20 @@ public class Client {
             // Retrieving username from the login return
             String username = serverReturn.substring(serverReturn.indexOf(":") + 1);
             System.out.println(serverReturn);// Instead of printing call showUserProfile from mainGUI
+            System.out.println("Username: " + username);
             if (serverReturn.substring(0, serverReturn.indexOf(":")).equals("SUCCESS")) {
                 // Here is where we would display the GUI
-                Application.launch(LoginGUI.class);
             } else {
                 // Here we could display GUI for failing login
+                System.out.println("Failed Login GUI Display");
             }
             System.out.println("Returned from server: " + serverReturn);
+            writer.write("GETUSER:Wyatt");
+            writer.println();
+            writer.flush();
+            System.out.println("Wrote create user to server");
+            serverReturn = reader.readLine();
+            System.out.println(serverReturn);
             writer.write("LOGOUT:");
             writer.println();
             writer.flush();
