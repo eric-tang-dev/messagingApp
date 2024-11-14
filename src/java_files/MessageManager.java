@@ -24,18 +24,21 @@ public class MessageManager extends UserManager implements SharedResources {
     // NOTE: need username and password
     public String sendMessage(String sender, String message) {
         // first, check that both usernames exist in idTracker
-        if (!(manager.idTracker.containsKey(username1))) {
+
+        if (!(idTracker.containsKey(username1))) {
+            System.out.println(idTracker.toString());
             return "User " + username1 + " could not be found in the database";
+
         }
-        if (!(manager.idTracker.containsKey(username2))) {
+        if (!(idTracker.containsKey(username2))) {
             return "User " + username2 + " could not be found in the database";
         }
         try {
             // use sender to get important information
-            Integer userId = manager.idTracker.get(sender);
+            Integer userId = idTracker.get(sender);
             System.out.println(sender);
             String receiver = sender.equals(username1) ? username2 : username1;
-            Integer receiverId = manager.idTracker.get(receiver);
+            Integer receiverId = idTracker.get(receiver);
 
             // construct URI for get request to database
             System.out.println(sendMessageForUser(userId, sender, receiver, message, "sent"));
@@ -76,7 +79,7 @@ public class MessageManager extends UserManager implements SharedResources {
             // append the friends hashmap, get the messages with the receiver
             ArrayList<String> user1messages = friends.get(receiver);
             if (user1messages == null) {
-                if (manager.idTracker.containsKey(receiver)) {
+                if (idTracker.containsKey(receiver)) {
                     user1messages = new ArrayList<>();
                     friends.put(receiver, user1messages);
                     message += "-1";
