@@ -16,12 +16,34 @@ public class UserManager {
     // it's more useful to store username as the key, and access ID number as the value
     // may change to private variable
     HashMap<String, Integer> idTracker = new HashMap<>();
+    HashMap<String, ArrayList<String>> blockedList = new HashMap<>();
 
     public UserManager() {
         // Constructor can be empty since idTracker is already initialized
     }
 
     public String populateHashMap() {
+//         first, populate the blockedList, since it's easier
+        try (BufferedReader bfr = new BufferedReader(new FileReader("blockedList.txt"))) {
+            while (true) {
+                String line = bfr.readLine();
+                if (line == null) {
+                    break;
+                }
+                String[] parts = line.split(":");
+                if (parts[1].equals(" []")) { // is empty
+                    blockedList.put(parts[0], new ArrayList<>());
+                } else {
+                    parts[1] = parts[1].substring(2, parts[1].length() - 1);
+                    String[] list = parts[1].split(",");
+                    ArrayList<String> finalList = new ArrayList<>(Arrays.asList(list));
+                    blockedList.put(parts[0], finalList);
+                }
+            }
+        } catch (IOException ie) {
+            return "Error populating the blocked list";
+        }
+
         try {
             // Create an HttpClient
             HttpClient client = HttpClient.newHttpClient();
@@ -137,6 +159,7 @@ public class UserManager {
                 String idString = responseContent.substring(responseContent.indexOf("\"id\":") + 5, responseContent.indexOf(",", responseContent.indexOf("\"id\":"))).trim();
                 int userId = Integer.parseInt(idString);
                 idTracker.put(username, userId); // add it to the HashMap
+                blockedList.put(username, new ArrayList<>()); // create an empty blocked list
                 writeHashMapToFile(); // write new hashmap to file
                 return "User created successfully: " + response.body();
             } else if (response.statusCode() == 200) {
@@ -433,6 +456,12 @@ public class UserManager {
      *   ENSURE THAT IT RETURNS TRUE BEFORE EXITING
      */
     public boolean writeHashMapToFile() {
+        // write the blocked list to file first
+        boolean wroteBlockedList = writeBlockedListToFile();
+        if (!wroteBlockedList) {
+            return false;
+        } // return false if this fails
+
         // note, trying to write an empty/null hashmap returns false
         if (idTracker == null || idTracker.isEmpty()) {
             return false;
@@ -441,6 +470,80 @@ public class UserManager {
             for (Map.Entry<String, Integer> entry : idTracker.entrySet()) {
                 // store pairs like this --> Key: Value
                 writer.println(entry.getKey() + ": " + entry.getValue());
+            }
+            return true;
+        } catch (IOException e) {
+            // should not be an issue, return false on all exceptions
+            return false;
+        }
+    }
+
+    public String block(String username, String blocked) {
+        if (username.equals(blocked)) {
+            return "Cannot block yourself";
+        }
+
+        if (!idTracker.containsKey(username)) { // check if the user exists
+            return "User " + username + " does not exist.";
+        } else {
+            ArrayList<String> list = blockedList.get(username);
+            if (list.contains(blocked)) { // check if already blocked
+                return "User " + blocked + " is already blocked.";
+            } else if (!idTracker.containsKey(blocked)) { // check if to-be-blocked-user exists
+                return "User " + blocked + " does not exist. Cannot block non-existent user.";
+            } else { // add to blocked list
+                blocked = blocked.trim();
+                list.add(blocked);
+                blockedList.put(username, list);
+                writeBlockedListToFile();
+            }
+        }
+        return "User " + blocked + " was successfully blocked.";
+    }
+
+    public String unblock(String username, String blocked) {
+        if (username.equals(blocked)) {
+            return "Error. Cannot unblock yourself.";
+        }
+        if (!idTracker.containsKey(username)) { // check if the user exists
+            return "User " + username + " does not exist.";
+        } else {
+            ArrayList<String> list = blockedList.get(username);
+            if (!idTracker.containsKey(blocked)) {
+                return "User " + blocked + " does not exist.";
+            } else if (!list.contains(blocked)) {
+                return "User " + blocked + " is not currently blocked.";
+            } else {
+                list.remove(blocked);
+                blockedList.put(username, list);
+                writeBlockedListToFile();
+            }
+        }
+        return "User " + blocked + " was successfully unblocked.";
+    }
+
+    public boolean writeBlockedListToFile() {
+        if (blockedList == null || blockedList.isEmpty()) {
+            return false;
+        }
+        try (PrintWriter writer = new PrintWriter(new FileWriter("blockedList.txt"))) {
+            for (Map.Entry<String, ArrayList<String>> entry : blockedList.entrySet()) {
+                // store pairs like this --> username: [arraylist_of_messages]
+                writer.print(entry.getKey() + ": [");
+                if (entry.getValue().isEmpty()) {
+                    writer.print("]");
+                    writer.println();
+                } else {
+                    String b = "";
+                    for (String a : entry.getValue()) {
+                        b += a + ",";
+                    }
+                    b = b.substring(0, b.length() - 1);
+                    b += "]";
+                    writer.print(b);
+                    writer.println();
+                }
+                writer.flush();
             }
             return true;
         } catch (IOException e) {
