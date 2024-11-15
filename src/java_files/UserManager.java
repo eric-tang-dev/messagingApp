@@ -255,23 +255,19 @@ public class UserManager {
 
             // Convert friends to JSON
             // Same logic as in .createUser()
-            if (friends != null && !friends.isEmpty()) {
-                String friendsToJson = friends.entrySet().stream()
-                        .map(entry -> "\"" + entry.getKey() + "\": " +
-                                entry.getValue().stream()
-                                        .map(friend -> "\"" + friend + "\"")
-                                        .collect(Collectors.joining(", ", "[", "]")))
-                        .collect(Collectors.joining(", ", "{", "}"));
-
-                jsonBuilder.append("\"friends\": ").append(friendsToJson).append(", ");
+            jsonBuilder.append("\"friends\": {");
+            for (Map.Entry<String, ArrayList<String>> entry : friends.entrySet()) {
+                jsonBuilder.append("\"").append(entry.getKey()).append("\"").append(":").append(entry.getValue()).append(",");
             }
-
-            if (jsonBuilder.length() > 1) {
-                jsonBuilder.setLength(jsonBuilder.length() - 2); // Remove extra comma and space
+            if (friends.isEmpty()) { // if friends hashmap is empty
+                jsonBuilder.setLength(jsonBuilder.length() - 1);
+                jsonBuilder.append("{}");
+                jsonBuilder.append("}");
+            } else {
+                jsonBuilder.setLength(jsonBuilder.length() - 1);
+                jsonBuilder.append("}}");
             }
-            jsonBuilder.append("}");
             String json = jsonBuilder.toString();
-            System.out.println(json);
 
             // connect the username to an ID in the Map
             Integer userId = idTracker.get(username);
@@ -286,7 +282,7 @@ public class UserManager {
                     .method("PATCH", HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            // send the PUT request and handle the response
+            // send the PATCH request and handle the response
             HttpResponse<String> response = client.send(patchRequest, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200 || response.statusCode() == 204) {
@@ -335,6 +331,80 @@ public class UserManager {
         } catch (Exception e) {
             return "";
         }
+    }
+
+    // adds a friend
+    public String addFriend(String username, String friend) {
+        String data = getUser(username); // get user data
+        HashMap<String, ArrayList<String>> friends = new HashMap<>(); // to be populated
+
+        int friendsIndex = data.indexOf("friends\":{") + 9;
+        data = data.substring(friendsIndex, data.length() - 1);
+        data = data.substring(1, data.length() - 1);
+
+        String[] parts = data.split("]");
+        for (String part : parts) {
+            // get name
+            int nameStartIndex = part.indexOf("\"");
+            int nameEndIndex = part.indexOf("\":");
+            if (nameStartIndex == -1 && nameEndIndex == -1) {
+                break;
+            }
+            String name = part.substring(nameStartIndex + 1, nameEndIndex);
+
+            // get array
+            int messageStartIndex = part.indexOf("[");
+            String[] messageList = part.substring(messageStartIndex + 1).split(",");
+            ArrayList<String> messages = new ArrayList<>(Arrays.asList(messageList));
+
+            // put in hashmap
+            friends.put(name, messages);
+        }
+
+        // add the friend and an empty ArrayList<String>
+        ArrayList<String> empty = new ArrayList<>();
+        friends.put(friend, empty);
+
+        return editUser(username, null, null, null, friends);
+    }
+
+    public String unfriend(String username, String friend) {
+        String data = getUser(username); // get user data
+        HashMap<String, ArrayList<String>> friends = new HashMap<>(); // to be populated
+
+        int friendsIndex = data.indexOf("friends\":{") + 9;
+        data = data.substring(friendsIndex, data.length() - 1);
+        data = data.substring(1, data.length() - 1);
+
+        String[] parts = data.split("]");
+        for (String part : parts) {
+            // get name
+            int nameStartIndex = part.indexOf("\"");
+            int nameEndIndex = part.indexOf("\":");
+            if (nameStartIndex == -1 && nameEndIndex == -1) {
+                break;
+            }
+            String name = part.substring(nameStartIndex + 1, nameEndIndex);
+
+            // get array
+            int messageStartIndex = part.indexOf("[");
+            String[] messageList = part.substring(messageStartIndex + 1).split(",");
+            ArrayList<String> messages = new ArrayList<>(Arrays.asList(messageList));
+
+            // put in hashmap
+            friends.put(name, messages);
+        }
+
+        boolean hasFriend = false;
+        for (Map.Entry<String, ArrayList<String>> entry : friends.entrySet()) {
+            if (entry.getKey().equals(friend)) {
+                hasFriend = true;
+            }
+        }
+        if (hasFriend) {
+            friends.remove(friend);
+        }
+        return editUser(username, null, null, null, friends);
     }
 
     // mainly for debugging purposes
