@@ -23,12 +23,13 @@ public class MessageManager extends UserManager implements SharedResources {
     // we need to add functionality to tell the program to escape it
     // NOTE: need username and password
     public String sendMessage(String sender, String message) {
+        super.populateHashMap();
+        super.writeHashMapToFile();
+
         // first, check that both usernames exist in idTracker
 
         if (!(idTracker.containsKey(username1))) {
-            System.out.println(idTracker.toString());
             return "User " + username1 + " could not be found in the database";
-
         }
         if (!(idTracker.containsKey(username2))) {
             return "User " + username2 + " could not be found in the database";
@@ -36,7 +37,6 @@ public class MessageManager extends UserManager implements SharedResources {
         try {
             // use sender to get important information
             Integer userId = idTracker.get(sender);
-            System.out.println(sender);
             String receiver = sender.equals(username1) ? username2 : username1;
             Integer receiverId = idTracker.get(receiver);
 
@@ -53,12 +53,10 @@ public class MessageManager extends UserManager implements SharedResources {
     public String sendMessageForUser(Integer userId, String sender, String receiver, String message, String sent) {
         // add info to message before storing it
         message += sent.equals("sent") ? "-1" : "-2";
-        System.out.println(message);
         try {
             HttpClient client = HttpClient.newHttpClient();
 
             URI uri = new URI("http://127.0.0.1:8000/messaging/users/" + userId + "/");
-            System.out.println(uri);
 
             // get the current friends hashmap
             HttpRequest getRequest = HttpRequest.newBuilder()
@@ -85,14 +83,17 @@ public class MessageManager extends UserManager implements SharedResources {
                     message += "-1";
                 } else return "Cannot message non-existent user";
             } else if (user1messages.isEmpty()) {
-                System.out.println("here");
                 message += "-1";
             } else {
                 // get index of last message
                 String lastMessage = user1messages.getLast();
-                String[] parts = lastMessage.split("-");
-                int index = Integer.parseInt(parts[2]) + 1;
-                message += "-" + index;
+                if (lastMessage.isEmpty()) {
+                    message += "-1";
+                } else {
+                    String[] parts = lastMessage.split("-");
+                    int index = Integer.parseInt(parts[2]) + 1;
+                    message += "-" + index;
+                }
             }
             user1messages.add(message);
             friends.replace(receiver, user1messages);
@@ -114,6 +115,9 @@ public class MessageManager extends UserManager implements SharedResources {
 
                 // for each message
                 for (int i = 0; i < messages.size(); i++) {
+                    if (messages.get(i).isEmpty()) {
+                        continue;
+                    }
                     jsonBuilder.append("\"").append(messages.get(i)).append("\"");
                     if (i < messages.size() - 1) {
                         jsonBuilder.append(", ");
@@ -130,7 +134,7 @@ public class MessageManager extends UserManager implements SharedResources {
 
             jsonBuilder.append("}");
             String json = jsonBuilder.toString();
-
+            System.out.println(json);
 
             HttpRequest putRequest = HttpRequest.newBuilder()
                     .uri(uri)
@@ -140,6 +144,7 @@ public class MessageManager extends UserManager implements SharedResources {
 
             // send put request
             HttpResponse<String> putResponse = client.send(putRequest, HttpResponse.BodyHandlers.ofString());
+            System.out.println(putResponse.body());
             if (putResponse.statusCode() == 200 || putResponse.statusCode() == 204) {
                 return "Message sent successfully.";
             } else {
