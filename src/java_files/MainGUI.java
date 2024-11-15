@@ -68,7 +68,7 @@ public class MainGUI extends Application implements SharedResources {
         }
     }
 
-    private void showLogin() {
+    public void showLogin() {
         LoginGUI loginGUI = new LoginGUI();
         try {
             loginGUI.start(primaryStage);
@@ -278,6 +278,11 @@ class LoginGUI extends Application implements SharedResources{
             e.printStackTrace();
         }
     }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
 
     // update the terminal (what the user sees in the GUI)
     private void printTerminalOutput(String newValue) {

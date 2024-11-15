@@ -5,18 +5,19 @@ import javafx.stage.Stage;
 import java.io.*;
 import java.net.*;
 
-public class Client {
+public class Client implements SharedResources {
     // Hardcoding in the starting port number of the server
     static int portNum = 4242;
     public static void main(String[] args) {
 //        Application.launch(MainGUI.class, args);
         Client client1 = new Client();
-        //Client client2 = new Client();
+//        Client client2 = new Client();
         client1.newClient();
-        //client2.newClient();
+//        client2.newClient();
 //        MainGUI mainGUI = new MainGUI();
 //        mainGUI.showLogin();
     }
+
     public void newClient() {
         String serverReturn;
         try {
@@ -25,11 +26,13 @@ public class Client {
             System.out.println("Connected to server on port num " + portNum);
             // Increment the port number the next time a client object is created
             // and tries connecting to server
-            portNum++;
+//            portNum++;
             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter writer = new PrintWriter(socket.getOutputStream());
             // LOTS OF GUI DISPLAY AND INPUT WILL BE SHOWN HERE. EACH DIALOG WILL WRITE WHAT
             // THE RETURN IS TO THE SERVER. THIS IS MOSTLY PHASE 3 SO I'M WAITING FOR NOW
+
+            //Login Test
             writer.write("LOGIN:Wyatt:wpassword");
             writer.println();
             writer.flush();
@@ -39,25 +42,52 @@ public class Client {
             String username = serverReturn.substring(serverReturn.indexOf(":") + 1);
             System.out.println(serverReturn);// Instead of printing call showUserProfile from mainGUI
             System.out.println("Username: " + username);
-            if (serverReturn.substring(0, serverReturn.indexOf(":")).equals("SUCCESS")) {
+            if (serverReturn.substring(0, serverReturn.indexOf(":")).contains("SUCCESS")) {
                 // Here is where we would display the GUI
             } else {
                 // Here we could display GUI for failing login
                 System.out.println("Failed Login GUI Display");
             }
             System.out.println("Returned from server: " + serverReturn);
+
+            // Edit Test
+//            writer.write("EDIT:Wyatt:wpassword:2nd New bio descript:2nd new email descript");
+//            writer.println();
+//            writer.flush();
+//            System.out.println("Wrote to server");
+//            serverReturn = reader.readLine();
+            // Retrieving username from the login return
+//            username = serverReturn.substring(serverReturn.indexOf(":") + 1);
+//            System.out.println(serverReturn);// Instead of printing call showUserProfile from mainGUI
+//            System.out.println("Username: " + username);
+
+            // Delete Test
+//            writer.write("DELETEUSER:Wyatt:wpassword");
+//            writer.println();
+//            writer.flush();
+//            System.out.println("Wrote to server");
+//            serverReturn = reader.readLine();
+//            System.out.println(serverReturn);
+//            serverReturn = null;
+
+            // GetUser Test
             writer.write("GETUSER:Wyatt");
             writer.println();
             writer.flush();
-            System.out.println("Wrote create user to server");
+            System.out.println("Wrote to server");
             serverReturn = reader.readLine();
             System.out.println(serverReturn);
-            writer.write("LOGOUT:");
-            writer.println();
-            writer.flush();
-            System.out.println("Okay to log out");
-            reader.close();
-            writer.close();
+            serverReturn = null;
+
+
+            // Logout Test
+//            writer.write("LOGOUT:");
+//            writer.println();
+//            writer.flush();
+//            System.out.println("Okay to log out");
+//            reader.close();
+//            writer.close();
+            socket.close();
         } catch (IOException e) {
             // MAY NEED TO DO SOME TESTING TO PREVENT EXCEPTIONS
             System.out.println("Failed to connect or other exception");

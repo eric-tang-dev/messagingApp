@@ -224,9 +224,14 @@ public class UserManager {
 
     // This is a PUT/PATCH request
     // fields that are non-empty will be updated, leave fields empty if don't want to update
-    // NOTE: MUST ENTER CORRECT USERNAME AND PASSWORD TO BE ALLOWED
+    // NOTE: MUST ENTER CORRECT USERNAME
     public String editUser(String username, String password, String email, String bio,
-            HashMap<String, ArrayList<String>> friends) {
+                           HashMap<String, ArrayList<String>> friends) {
+//        if (username == null || username.isEmpty()) {
+//            return "Did not specify a username.";
+//        } else {
+//
+//        }
         try {
             HttpClient client = HttpClient.newHttpClient();
 
@@ -265,6 +270,7 @@ public class UserManager {
             }
             jsonBuilder.append("}");
             String json = jsonBuilder.toString();
+            System.out.println(json);
 
             // connect the username to an ID in the Map
             Integer userId = idTracker.get(username);
@@ -273,14 +279,14 @@ public class UserManager {
             URI uri = new URI("http://127.0.0.1:8000/messaging/users/" + userId + "/");
 
             // build the PUT request
-            HttpRequest putRequest = HttpRequest.newBuilder()
+            HttpRequest patchRequest = HttpRequest.newBuilder()
                     .uri(uri)
                     .header("Content-Type", "application/json")
-                    .PUT(HttpRequest.BodyPublishers.ofString(json))
+                    .method("PATCH", HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
             // send the PUT request and handle the response
-            HttpResponse<String> response = client.send(putRequest, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(patchRequest, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200 || response.statusCode() == 204) {
                 return "User updated successfully.";
