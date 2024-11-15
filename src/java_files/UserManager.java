@@ -335,6 +335,16 @@ public class UserManager {
 
     // adds a friend
     public String addFriend(String username, String friend) {
+        // check that friend exists in the database
+        boolean hasFriend = false;
+        for (Map.Entry<String, Integer> entry: idTracker.entrySet()) {
+            if (entry.getKey().equals(friend)) {
+                hasFriend = true;
+            }
+        }
+        if (!hasFriend) {
+            return "Cannot find user " + friend;
+        }
         String data = getUser(username); // get user data
         HashMap<String, ArrayList<String>> friends = new HashMap<>(); // to be populated
 
