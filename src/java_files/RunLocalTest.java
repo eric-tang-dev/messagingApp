@@ -1,6 +1,12 @@
 package java_files;
 
 import org.junit.jupiter.api.Test;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintWriter;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RunLocalTest implements SharedResources {
@@ -67,7 +73,7 @@ public class RunLocalTest implements SharedResources {
         assertTrue(userCreate.contains("User created successfully"), "User was not created successfully.");
 
         // edit the user and check for success
-        String userEdit = manager.editUser("user", "pwd", "email", "bio", null);
+        String userEdit = manager.editUser("user", null, "email", "bio", null);
         assertTrue(userEdit.contains("User updated successfully."), "User was not updated successfully.");
 
         // double-check using manual comparisons
@@ -156,6 +162,129 @@ public class RunLocalTest implements SharedResources {
         assertTrue(flushed, "No users should be found.");
 
         // flush the database at the end to reset
+        manager.flushDatabase();
+    }
+
+    @Test
+    public void testAddFriend() {
+        // flush first
+        manager.flushDatabase();
+
+        // create two users
+        manager.createUser("Eric", "pwd", "", "", null);
+        manager.createUser("George", "pwd", "", "", null);
+
+        // use add friend
+        String friendAdded = manager.addFriend("Eric", "George");
+        assertTrue(friendAdded.contains("successfully"), "Friend was not added successfully.");
+
+        // do a manual check to be sure
+        String data = manager.getUser("Eric");
+        assertTrue(data.contains("Data"), "Failed to retrieve user data.");
+        int friendsIndex = data.indexOf("friends");
+        data = data.substring(friendsIndex);
+        // as long as the name is somewhere in the string, it must be in the friends list
+        // this is valid because we know the structure of the String from getUser()
+        assertTrue(data.contains("George"), "Friend was not added successfully.");
+
+        // flush at the end again
+        manager.flushDatabase();
+    }
+
+    @Test
+    public void testUnfriend() {
+        // flush database first
+        manager.flushDatabase();
+
+        // create users for testing
+        manager.createUser("Eric", "pwd", "", "", null);
+        manager.createUser("George", "pwd", "", "", null);
+
+        // use add friend
+        String friendAdded = manager.addFriend("Eric", "George");
+        assertTrue(friendAdded.contains("successfully"), "Friend was not added successfully.");
+
+        // try to remove friend
+        String friendRemoved = manager.unfriend("Eric", "George");
+        assertTrue(friendRemoved.contains("successfully"), "Friend was not removed successfully.");
+
+        // add a manual check to be sure
+        String data = manager.getUser("Eric");
+        assertTrue(data.contains("Data"), "Failed to retrieve user data.");
+        int friendsIndex = data.indexOf("friends");
+        data = data.substring(friendsIndex);
+        assertFalse(data.contains("George"), "Friend was not removed successfully.");
+
+        // flush at the end
+        manager.flushDatabase();
+    }
+
+    @Test
+    public void testBlock() {
+        // flush the database
+        manager.flushDatabase();
+
+        // create users
+        manager.createUser("Eric", "pwd", "", "", null);
+        manager.createUser("George", "pwd", "", "", null);
+
+        // block the user
+        String userBlocked = manager.block("Eric", "George");
+        assertTrue(userBlocked.contains("successfully blocked"), "User was not blocked successfully.");
+
+        // check the file manually to be sure
+        try (BufferedReader bfr = new BufferedReader(new FileReader("blockedList.txt"))) {
+            while (true) {
+                String line = bfr.readLine();
+                if (line == null) {
+                    break;
+                }
+                if (line.startsWith("Eric")) {
+                    assertTrue(line.contains("George"), "User was not blocked successfully.");
+                }
+            }
+        } catch (IOException ie) {
+            fail("Unexpected exception while reading file: " + ie.getMessage());
+        }
+
+        // flush the database
+        manager.flushDatabase();
+    }
+
+    @Test
+    public void testUnblock() {
+        // flush the database
+        manager.flushDatabase();
+
+        // create users
+        manager.createUser("Eric", "pwd", "", "", null);
+        manager.createUser("George", "pwd", "", "", null);
+
+        // block the user
+        String userBlocked = manager.block("Eric", "George");
+        assertTrue(userBlocked.contains("successfully blocked"), "User was not blocked successfully.");
+
+        // now, try to unblock the user
+        String userUnblocked = manager.unblock("Eric", "George");
+        assertTrue(userUnblocked.contains("successfully unblocked"), "User was not unblocked successfully.");
+
+        // check the file manually to be sure
+        try (BufferedReader bfr = new BufferedReader(new FileReader("blockedList.txt"))) {
+            while (true) {
+                String line = bfr.readLine();
+                if (line == null) {
+                    break;
+                }
+                if (line.startsWith("Eric")) {
+//                    assertTrue(line.contains("George"), "User was not blocked successfully.");
+                }
+                System.out.println(line);
+            }
+        } catch (IOException ie) {
+            fail("Unexpected exception while reading file: " + ie.getMessage());
+        }
+
+        // flush the database
         manager.flushDatabase();
     }
 }
