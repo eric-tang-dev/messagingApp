@@ -148,13 +148,7 @@ public class RunClientTest implements SharedResources {
             String input = "SENDMESSAGE:test:mewtwo:howdy partner";
             writer.write(input); writer.println(); writer.flush();
             String serverResponse = reader.readLine();
-            assertNotNull(serverResponse, "Server response should not be null");
-            if (serverResponse.contains("SUCCESS")) {
-                assertTrue(serverResponse.contains("Sent"), "Expected message sent success response");
-            } else if (serverResponse.contains("FAILED")) {
-                assertTrue(serverResponse.contains("could not be found") ||
-                        serverResponse.contains("An error occurred"), "Expected error message");
-            }
+            assertTrue(serverResponse.contains("Message sent successfully."), "Null or Error occurred when testing (unexpected response).");
             manager.flushDatabase();
         } catch (IOException e) {
             fail("Failed " + e.getMessage());
