@@ -441,6 +441,8 @@ public class UserManager {
         }
         if (hasFriend) {
             friends.remove(friend);
+        } else {
+            return "Cannot find user " + friend;
         }
         return editUser(username, null, null, null, friends);
     }
