@@ -41,13 +41,13 @@ public class MessageManager extends UserManager implements SharedResources {
             Integer receiverId = idTracker.get(receiver);
 
             // construct URI for get request to database
-            System.out.println(sendMessageForUser(userId, sender, receiver, message, "sent"));
-            System.out.println(sendMessageForUser(receiverId, receiver, sender, message, "received"));
+            sendMessageForUser(userId, sender, receiver, message, "sent");
+            sendMessageForUser(receiverId, receiver, sender, message, "received");
         } catch (Exception e) {
             e.printStackTrace();
             return "An error occurred while sending the message.";
         }
-        return "";
+        return "Message sent successfully.";
     }
 
     public String sendMessageForUser(Integer userId, String sender, String receiver, String message, String sent) {
@@ -134,7 +134,6 @@ public class MessageManager extends UserManager implements SharedResources {
 
             jsonBuilder.append("}");
             String json = jsonBuilder.toString();
-            System.out.println(json);
 
             HttpRequest putRequest = HttpRequest.newBuilder()
                     .uri(uri)
@@ -144,7 +143,6 @@ public class MessageManager extends UserManager implements SharedResources {
 
             // send put request
             HttpResponse<String> putResponse = client.send(putRequest, HttpResponse.BodyHandlers.ofString());
-            System.out.println(putResponse.body());
             if (putResponse.statusCode() == 200 || putResponse.statusCode() == 204) {
                 return "Message sent successfully.";
             } else {
