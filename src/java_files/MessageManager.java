@@ -41,8 +41,14 @@ public class MessageManager extends UserManager implements SharedResources {
             Integer receiverId = idTracker.get(receiver);
 
             // construct URI for get request to database
-            sendMessageForUser(userId, sender, receiver, message, "sent");
-            sendMessageForUser(receiverId, receiver, sender, message, "received");
+            String a = sendMessageForUser(userId, sender, receiver, message, "sent");
+            if (!(a.contains("successfully"))) {
+                return a; // return error message
+            }
+            String b = sendMessageForUser(receiverId, receiver, sender, message, "received");
+            if (!b.contains("successfully")) {
+                return b;
+            }
         } catch (Exception e) {
             e.printStackTrace();
             return "An error occurred while sending the message.";
