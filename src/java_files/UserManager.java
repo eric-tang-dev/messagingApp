@@ -275,21 +275,26 @@ public class UserManager {
             if (bio != null && !bio.isEmpty()) {
                 jsonBuilder.append("\"bio\": \"").append(bio).append("\", ");
             }
+            if (friends != null) {
+                jsonBuilder.append("\"friends\": {");
+                for (Map.Entry<String, ArrayList<String>> entry : friends.entrySet()) {
+                    jsonBuilder.append("\"").append(entry.getKey()).append("\"").append(":").append(entry.getValue()).append(",");
+                }
+                if (friends.isEmpty()) { // if friends hashmap is empty
+                    jsonBuilder.setLength(jsonBuilder.length() - 1);
+                    jsonBuilder.append("{}");
+                    jsonBuilder.append("}");
+                } else {
+                    jsonBuilder.setLength(jsonBuilder.length() - 1);
+                    jsonBuilder.append("}}");
+                }
+            } else {
+                jsonBuilder.setLength(jsonBuilder.length() - 2);
+                jsonBuilder.append("}");
+            }
 
             // Convert friends to JSON
             // Same logic as in .createUser()
-            jsonBuilder.append("\"friends\": {");
-            for (Map.Entry<String, ArrayList<String>> entry : friends.entrySet()) {
-                jsonBuilder.append("\"").append(entry.getKey()).append("\"").append(":").append(entry.getValue()).append(",");
-            }
-            if (friends.isEmpty()) { // if friends hashmap is empty
-                jsonBuilder.setLength(jsonBuilder.length() - 1);
-                jsonBuilder.append("{}");
-                jsonBuilder.append("}");
-            } else {
-                jsonBuilder.setLength(jsonBuilder.length() - 1);
-                jsonBuilder.append("}}");
-            }
             String json = jsonBuilder.toString();
 
             // connect the username to an ID in the Map
