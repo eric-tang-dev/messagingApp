@@ -1,14 +1,125 @@
 # MessagingApp Setup Guide
 
-## About
-This app is a direct messaging application. The frontend is handled entirely by JavaFX, while the backend and database operations are managed by Django. We use SQLite for our database. Our user model, `myUser`, extends the `User` class provided by `django.contrib.auth`.
+## Instructions
 
-## Important Documentation Notes
-1. The UserManager class is the bridge between Python and Java. It contains almost all of the methods that make calls to the SQLite database and return data in a format that we can use in Java.
-2. The MainGUI class is the GUI for our home screen. It is the first GUI displayed. From that GUI, you are able to access all other GUIs in the app. The GUI has some functionality working right now, but we have not configured every button in the GUI to work yet.
-   - You should be able to create a user and login.
-3. The Authenticator class also communicates with the Python backend. It's only purpose is to authenticate the user's login and verify that they have the right username and password combination before authenticating them.
-4. RunLocalTest.java contains test methods for all methods in UserManager.java and Authenticator.java. We will incorporate the other classes such as UserMessage.java later, but they have not been included in the project yet.
+### Before Running Any Part of the Program
+Copy and execute the following commands in the terminal:
+
+```bash
+cd python_backend
+source venv/bin/activate
+python manage.py runserver
+```
+
+Before running the `Client.java` class or `RunClientTest.java`:
+</br>
+**Make sure to run `ThreadedServer.java` first**
+
+## Threading Documentation
+
+We implement three layers of thread safety. 
+
+It’s important to note that our database is stored in **SQLite**. We structured our program to minimize the amount of data that Java has to save locally. 
+
+### First Layer: Java Thread Safety
+Our first layer of thread safety is in Java itself. We have a few data sets that are shared by all threads. For the most part, write-access to these data sets is extremely limited. We try to limit each thread’s write-access to only allow it to change data related to its own user. 
+
+Of course, there are instances where threads must edit users’ data. In such cases, we use a **manager object** to synchronize those calls. These synchronized blocks are placed throughout the `ThreadedServer.java` class to ensure thread safety.
+
+### Second Layer: Python Serialization
+Our second layer of thread safety is **Python serialization**. Our Java program sends JSON data to Python, which must be serialized before being sent to the database. 
+
+- Methods in `python_backend` handle the serialization of data.
+- Python processes serialized data **one at a time**. This ensures that even if multiple threads send JSON data to Python, they are processed sequentially, with other threads waiting in a queue.
+
+This allows multiple threads to make concurrent calls in Java while ensuring that they are handled one-by-one in the backend.
+
+### Third Layer: SQLite Database
+Our last layer of thread safety lies in the **database itself**. SQLite operations are atomic, meaning that a transaction must complete fully or not at all. 
+
+- Only one thread will access the database at a time.
+- In Java, we ensure that threads read the database before each call, guaranteeing access to the most recent version of the database.
+- SQLite provides additional thread safety through features like rollback, write-ahead logging, and crash recovery.
+
+With these three levels of thread safety, we can confidently claim that our program is thread-safe.
+
+The ‘Client.java’ class has a few commented out sections of code meant to try and create race conditions within the program. Use these to compare expected results with actual results from running the program.
+
+---
+
+## Test Cases Documentation
+
+We have three test case files, all implemented using **JUnit**.
+
+1. **RunLocalTest.java** and **RunLocalTest2.java**
+   - These files test all methods related to the database.
+   - They can be run independently.
+
+2. **RunClientTest.java**
+   - This file tests methods related to the server.
+   - To run this test, you must first run `ThreadedServer.java`.
+
+---
+
+## Class Documentation
+
+### Authenticator
+The `Authenticator` class handles user authentication. 
+
+- It uses the authentication methods provided by **Django’s REST framework**.
+- Takes in a username and password, checks their validity in the database, and returns a boolean.
+
+### Client
+The `Client` class manages the connection to the server. *(Future development will integrate it with the GUI.)*
+
+- The `newClientCommand()` method takes a string input and sends it to the server.
+- This string input corresponds to potential user actions in the GUI (e.g., button clicks).
+- For testing, strings can be manually input, adhering to the format of `ThreadedServer`'s switch cases.
+
+### MainGUI and Other GUI Classes
+The GUI is currently under development and is used primarily for testing purposes. 
+
+Current features include:
+- Creating a user
+- Logging in and out
+- Viewing a user’s profile
+- Viewing a list of all other users
+
+### MessageManager
+The `MessageManager` class handles message operations.
+
+- Provides methods for creating messages.
+- Manages message storage and retrieval responses (success/failure) from the database.
+
+### UserManager
+The `UserManager` class manages user data and interactions within the server. It provides the following methods:
+
+- **`createUser`**: Creates a new user with specified username, password, and additional info (e.g., email, bio).
+- **`editUser`**: Updates user information, excluding username or password.
+- **`deleteUser`**: Deletes a user by username.
+- **`getUser`**: Retrieves information for a specified username.
+- **`addFriend`**: Adds a friend to a user’s friend list.
+- **`unFriend`**: Removes a friend from a user’s friend list.
+- **`block`**: Blocks a specified user for the given user.
+- **`unblock`**: Unblocks a specified user for the given user.
+
+### ThreadedServer
+The `ThreadedServer` class acts as a mediator between the database and the client.
+
+- Reads input from the client.
+- Calls methods in `UserManager.java`.
+- Retrieves responses from the database.
+- Sends **SUCCESS/FAILED** messages back to the client.
+
+### Python_backend
+The **Python_backend** is a Django project that contains an application called **messaging**. 
+
+The `messaging` app includes:
+- **Serializer**: Handles data serialization.
+- **Views.py**: Defines view logic.
+- **Models.py**: Defines database models.
+- **URL routing**: Manages URL configurations.
+
 
 ## IMPORTANT
 Please make sure .gitignore exists in your project's root directory before making any commits to Github. Otherwise, it will create conflicts for everyone. 
