@@ -6,9 +6,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.*;
 
-public class MessageManager extends UserManager implements SharedResources {
+public class MessageManager extends UserManager implements MessageManagerInterface {
 
-    // inherits access to manager
     // will only be able to edit two users data --> NOTE: CODE THIS IN LATER
     private String username1;
     private String username2;
@@ -160,7 +159,7 @@ public class MessageManager extends UserManager implements SharedResources {
         }
     }
 
-    public static HashMap<String, ArrayList<String>> getFriendsHashMap(String response) {
+    public HashMap<String, ArrayList<String>> getFriendsHashMap(String response) {
         String friendsData = "\"friends\":{";
         int friendsStart = response.indexOf(friendsData);
 
