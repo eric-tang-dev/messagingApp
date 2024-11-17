@@ -5,7 +5,23 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-public class Authenticator {
+import com.sun.tools.javac.Main;
+import javafx.application.Application;
+import javafx.stage.Stage;
+
+
+public class Authenticator extends Application implements AuthenticatorInterface {
+
+    private static MainGUI main;
+    private static Stage primaryStage;
+
+    public void start(Stage stage) {
+        primaryStage = stage;
+        main = new MainGUI();
+        main.start(primaryStage);
+        this.showLogin();
+    }
+
     public boolean authenticate(String username, String password) {
         try {
             // this is our API's authentication url
@@ -35,6 +51,19 @@ public class Authenticator {
         } catch (Exception e) {
             e.printStackTrace();
             return false;
+        }
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    public void showLogin() {
+        LoginGUI loginGUI = new LoginGUI();
+        try {
+            loginGUI.start(primaryStage);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
