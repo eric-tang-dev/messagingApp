@@ -57,3 +57,11 @@ bin/
 # Ignore SQLite database file
 db.sqlite3
 
+# Ignore library files
+/lib
+
+/test-lib
+
+/test-lib1
+
+/test-lib2
