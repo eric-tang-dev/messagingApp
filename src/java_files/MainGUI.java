@@ -14,6 +14,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+
+import java.lang.reflect.Array;
 import java.util.*;
 import java.io.*;
 
@@ -26,6 +28,8 @@ public class MainGUI extends Application implements SharedResources {
         // this populates the hashmap that we use to save a local copy of a part of the database
         manager.populateHashMap(); // do not remove this line of code from the top
         boolean huh = manager.writeHashMapToFile(); // do not remove this line of code from the top
+
+        manager.deleteUser("test");
 
         this.primaryStage = primaryStage;
         primaryStage.setTitle("Main Screen");
@@ -68,7 +72,7 @@ public class MainGUI extends Application implements SharedResources {
         }
     }
 
-    private void showLogin() {
+    public void showLogin() {
         LoginGUI loginGUI = new LoginGUI();
         try {
             loginGUI.start(primaryStage);
