@@ -14,13 +14,36 @@ import java.io.*;
 public class UserManager {
 
     // it's more useful to store username as the key, and access ID number as the value
+    // may change to private variable
     HashMap<String, Integer> idTracker = new HashMap<>();
+    HashMap<String, ArrayList<String>> blockedList = new HashMap<>();
 
     public UserManager() {
         // Constructor can be empty since idTracker is already initialized
     }
 
     public String populateHashMap() {
+//         first, populate the blockedList, since it's easier
+        try (BufferedReader bfr = new BufferedReader(new FileReader("blockedList.txt"))) {
+            while (true) {
+                String line = bfr.readLine();
+                if (line == null) {
+                    break;
+                }
+                String[] parts = line.split(":");
+                if (parts[1].equals(" []")) { // is empty
+                    blockedList.put(parts[0], new ArrayList<>());
+                } else {
+                    parts[1] = parts[1].substring(2, parts[1].length() - 1);
+                    String[] list = parts[1].split(",");
+                    ArrayList<String> finalList = new ArrayList<>(Arrays.asList(list));
+                    blockedList.put(parts[0], finalList);
+                }
+            }
+        } catch (IOException ie) {
+            return "Error populating the blocked list";
+        }
+
         try {
             // Create an HttpClient
             HttpClient client = HttpClient.newHttpClient();
@@ -136,6 +159,7 @@ public class UserManager {
                 String idString = responseContent.substring(responseContent.indexOf("\"id\":") + 5, responseContent.indexOf(",", responseContent.indexOf("\"id\":"))).trim();
                 int userId = Integer.parseInt(idString);
                 idTracker.put(username, userId); // add it to the HashMap
+                blockedList.put(username, new ArrayList<>()); // create an empty blocked list
                 writeHashMapToFile(); // write new hashmap to file
                 return "User created successfully: " + response.body();
             } else if (response.statusCode() == 200) {
@@ -251,26 +275,27 @@ public class UserManager {
             if (bio != null && !bio.isEmpty()) {
                 jsonBuilder.append("\"bio\": \"").append(bio).append("\", ");
             }
+            if (friends != null) {
+                jsonBuilder.append("\"friends\": {");
+                for (Map.Entry<String, ArrayList<String>> entry : friends.entrySet()) {
+                    jsonBuilder.append("\"").append(entry.getKey()).append("\"").append(":").append(entry.getValue()).append(",");
+                }
+                if (friends.isEmpty()) { // if friends hashmap is empty
+                    jsonBuilder.setLength(jsonBuilder.length() - 1);
+                    jsonBuilder.append("{}");
+                    jsonBuilder.append("}");
+                } else {
+                    jsonBuilder.setLength(jsonBuilder.length() - 1);
+                    jsonBuilder.append("}}");
+                }
+            } else {
+                jsonBuilder.setLength(jsonBuilder.length() - 2);
+                jsonBuilder.append("}");
+            }
 
             // Convert friends to JSON
             // Same logic as in .createUser()
-            if (friends != null && !friends.isEmpty()) {
-                String friendsToJson = friends.entrySet().stream()
-                        .map(entry -> "\"" + entry.getKey() + "\": " +
-                                entry.getValue().stream()
-                                        .map(friend -> "\"" + friend + "\"")
-                                        .collect(Collectors.joining(", ", "[", "]")))
-                        .collect(Collectors.joining(", ", "{", "}"));
-
-                jsonBuilder.append("\"friends\": ").append(friendsToJson).append(", ");
-            }
-
-            if (jsonBuilder.length() > 1) {
-                jsonBuilder.setLength(jsonBuilder.length() - 2); // Remove extra comma and space
-            }
-            jsonBuilder.append("}");
             String json = jsonBuilder.toString();
-            System.out.println(json);
 
             // connect the username to an ID in the Map
             Integer userId = idTracker.get(username);
@@ -285,7 +310,7 @@ public class UserManager {
                     .method("PATCH", HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            // send the PUT request and handle the response
+            // send the PATCH request and handle the response
             HttpResponse<String> response = client.send(patchRequest, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200 || response.statusCode() == 204) {
@@ -325,6 +350,8 @@ public class UserManager {
 
             if (deleteResponse.statusCode() == 204) {
                 idTracker.remove(username); // delete it from the HashMap too
+                blockedList.remove(username);
+                writeHashMapToFile();
                 return "User " + username + " successfully deleted.";
             } else if (deleteResponse.statusCode() == 404) {
                 return "User " + username + " could not be found.";
@@ -334,6 +361,92 @@ public class UserManager {
         } catch (Exception e) {
             return "";
         }
+    }
+
+    // adds a friend
+    public String addFriend(String username, String friend) {
+        // check that friend exists in the database
+        boolean hasFriend = false;
+        for (Map.Entry<String, Integer> entry: idTracker.entrySet()) {
+            if (entry.getKey().equals(friend)) {
+                hasFriend = true;
+            }
+        }
+        if (!hasFriend) {
+            return "Cannot find user " + friend;
+        }
+        String data = getUser(username); // get user data
+        HashMap<String, ArrayList<String>> friends = new HashMap<>(); // to be populated
+
+        int friendsIndex = data.indexOf("friends\":{") + 9;
+        data = data.substring(friendsIndex, data.length() - 1);
+        data = data.substring(1, data.length() - 1);
+
+        String[] parts = data.split("]");
+        for (String part : parts) {
+            // get name
+            int nameStartIndex = part.indexOf("\"");
+            int nameEndIndex = part.indexOf("\":");
+            if (nameStartIndex == -1 && nameEndIndex == -1) {
+                break;
+            }
+            String name = part.substring(nameStartIndex + 1, nameEndIndex);
+
+            // get array
+            int messageStartIndex = part.indexOf("[");
+            String[] messageList = part.substring(messageStartIndex + 1).split(",");
+            ArrayList<String> messages = new ArrayList<>(Arrays.asList(messageList));
+
+            // put in hashmap
+            friends.put(name, messages);
+        }
+
+        // add the friend and an empty ArrayList<String>
+        ArrayList<String> empty = new ArrayList<>();
+        friends.put(friend, empty);
+
+        return editUser(username, null, null, null, friends);
+    }
+
+    public String unfriend(String username, String friend) {
+        String data = getUser(username); // get user data
+        HashMap<String, ArrayList<String>> friends = new HashMap<>(); // to be populated
+
+        int friendsIndex = data.indexOf("friends\":{") + 9;
+        data = data.substring(friendsIndex, data.length() - 1);
+        data = data.substring(1, data.length() - 1);
+
+        String[] parts = data.split("]");
+        for (String part : parts) {
+            // get name
+            int nameStartIndex = part.indexOf("\"");
+            int nameEndIndex = part.indexOf("\":");
+            if (nameStartIndex == -1 && nameEndIndex == -1) {
+                break;
+            }
+            String name = part.substring(nameStartIndex + 1, nameEndIndex);
+
+            // get array
+            int messageStartIndex = part.indexOf("[");
+            String[] messageList = part.substring(messageStartIndex + 1).split(",");
+            ArrayList<String> messages = new ArrayList<>(Arrays.asList(messageList));
+
+            // put in hashmap
+            friends.put(name, messages);
+        }
+
+        boolean hasFriend = false;
+        for (Map.Entry<String, ArrayList<String>> entry : friends.entrySet()) {
+            if (entry.getKey().equals(friend)) {
+                hasFriend = true;
+            }
+        }
+        if (hasFriend) {
+            friends.remove(friend);
+        } else {
+            return "Cannot find user " + friend;
+        }
+        return editUser(username, null, null, null, friends);
     }
 
     // mainly for debugging purposes
@@ -352,6 +465,12 @@ public class UserManager {
      *   ENSURE THAT IT RETURNS TRUE BEFORE EXITING
      */
     public boolean writeHashMapToFile() {
+        // write the blocked list to file first
+        boolean wroteBlockedList = writeBlockedListToFile();
+        if (!wroteBlockedList) {
+            return false;
+        } // return false if this fails
+
         // note, trying to write an empty/null hashmap returns false
         if (idTracker == null || idTracker.isEmpty()) {
             return false;
@@ -360,6 +479,80 @@ public class UserManager {
             for (Map.Entry<String, Integer> entry : idTracker.entrySet()) {
                 // store pairs like this --> Key: Value
                 writer.println(entry.getKey() + ": " + entry.getValue());
+            }
+            return true;
+        } catch (IOException e) {
+            // should not be an issue, return false on all exceptions
+            return false;
+        }
+    }
+
+    public String block(String username, String blocked) {
+        if (username.equals(blocked)) {
+            return "Cannot block yourself";
+        }
+
+        if (!idTracker.containsKey(username)) { // check if the user exists
+            return "User " + username + " does not exist.";
+        } else {
+            ArrayList<String> list = blockedList.get(username);
+            if (list.contains(blocked)) { // check if already blocked
+                return "User " + blocked + " is already blocked.";
+            } else if (!idTracker.containsKey(blocked)) { // check if to-be-blocked-user exists
+                return "User " + blocked + " does not exist. Cannot block non-existent user.";
+            } else { // add to blocked list
+                blocked = blocked.trim();
+                list.add(blocked);
+                blockedList.put(username, list);
+                writeBlockedListToFile();
+            }
+        }
+        return "User " + blocked + " was successfully blocked.";
+    }
+
+    public String unblock(String username, String blocked) {
+        if (username.equals(blocked)) {
+            return "Error. Cannot unblock yourself.";
+        }
+        if (!idTracker.containsKey(username)) { // check if the user exists
+            return "User " + username + " does not exist.";
+        } else {
+            ArrayList<String> list = blockedList.get(username);
+            if (!idTracker.containsKey(blocked)) {
+                return "User " + blocked + " does not exist.";
+            } else if (!list.contains(blocked)) {
+                return "User " + blocked + " is not currently blocked.";
+            } else {
+                list.remove(blocked);
+                blockedList.put(username, list);
+                writeBlockedListToFile();
+            }
+        }
+        return "User " + blocked + " was successfully unblocked.";
+    }
+
+    public boolean writeBlockedListToFile() {
+        if (blockedList == null || blockedList.isEmpty()) {
+            return false;
+        }
+        try (PrintWriter writer = new PrintWriter(new FileWriter("blockedList.txt"))) {
+            for (Map.Entry<String, ArrayList<String>> entry : blockedList.entrySet()) {
+                // store pairs like this --> username: [arraylist_of_messages]
+                writer.print(entry.getKey() + ": [");
+                if (entry.getValue().isEmpty()) {
+                    writer.print("]");
+                    writer.println();
+                } else {
+                    String b = "";
+                    for (String a : entry.getValue()) {
+                        b += a + ",";
+                    }
+                    b = b.substring(0, b.length() - 1);
+                    b += "]";
+                    writer.print(b);
+                    writer.println();
+                }
+                writer.flush();
             }
             return true;
         } catch (IOException e) {

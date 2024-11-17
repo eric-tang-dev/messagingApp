@@ -1,10 +1,10 @@
 package java_files;
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
 
 public class ThreadedServer extends Thread implements SharedResources {
     Socket client;
-    static Object blockLock;
 
     // Constructor: Each thread of the server has its own client
     public ThreadedServer(Socket client) {
@@ -47,6 +47,7 @@ public class ThreadedServer extends Thread implements SharedResources {
     // Whatever we want to display once connection is made will be here,
     // like GUI and listening for inputs like login or messaging people
     public void run() {
+
         Socket clientCopy = getClient();
         String input = "";
         String serverReturn;
@@ -59,9 +60,16 @@ public class ThreadedServer extends Thread implements SharedResources {
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientCopy.getInputStream()));
             PrintWriter writer = new PrintWriter(clientCopy.getOutputStream());
             while (!logout) {
-                if (!logout) {
+                try {
                     input = reader.readLine();
-                    System.out.println("Read input: " + input);
+                } catch (IOException e) {
+                    try {
+                        sleep(1000);
+                    } catch (InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    // System.out.println("ReLooping");
+                    continue;
                 }
                 if (input == null) {
                     break;
@@ -71,142 +79,291 @@ public class ThreadedServer extends Thread implements SharedResources {
                 // and action corresponds to what they pressed.
                 switch (input.substring(0, input.indexOf(":"))) {
                     case "LOGIN" -> {
-                        username = login(input, writer);
-                        if (username.contains("SUCCESS")) {
-                            username = username.substring(username.indexOf(":") + 2);
-                            writer.write("LOGIN SUCCESS: " + username);
+                        // Format: LOGIN:USERNAME:PASSWORD
+                        serverReturn = login(input, writer);
+                        if (serverReturn.contains("SUCCESS")) {
+                            writer.write(serverReturn);
                             writer.println();
                             writer.flush();
-                            System.out.println("Wrote back to client");
-                        } else {
-                            username = username.substring(username.indexOf(":") + 2);
-                            writer.write("LOGIN FAILED: " + username);
+                        } else if (serverReturn.contains("FAILED")) {
+                            writer.write(serverReturn);
                             writer.println();
                             writer.flush();
-                            System.out.println("Wrote back to client");
                             username = null;
+                        } else if (serverReturn.contains("Invalid Input")) {
+                            writer.write("Failed: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else {
+                            writer.write("FAILED: An exception occurred while login user");
+                            writer.println();
+                            writer.flush();
                         }
                         serverReturn = null;
                     }
                     case "CREATEUSER" -> {
-                        // Let's say the formating would be CREATEUSER:username:password:bio:email
-                        // WARNING: I'd probably make a method that gets called that way we can just
-                        // individually test each method in the test cases
+                        // Format: CREATEUSER:USERNAME:PASSWORD:BIO:EMAIL
                         serverReturn = createUser(input, writer);
-                        if (serverReturn.contains("SUCCESS")) {
-                            writer.write("SUCCESS:"); // Send back the created username
+                        if (serverReturn.contains("successfully")) {
+                            writer.write("SUCCESS: " + serverReturn);
                             writer.println();
                             writer.flush();
-                            System.out.println("Wrote back to client: Success");
                         } else if (serverReturn.contains("already exists")) {
-                            username = serverReturn.substring(serverReturn.indexOf(":") + 1, serverReturn.indexOf("|"));
-                            writer.write("FAILURE:" + username + "Username already exists"); // Send back the created username
+                            writer.write("FAILED: " + serverReturn);
                             writer.println();
                             writer.flush();
-                            System.out.println("Wrote back to client: Already Exists");
-                        } else if (serverReturn.contains("FAILED")) {
-                            writer.write("FAILURE:"); // Send back the created username
+                        } else if (serverReturn.contains("Failed to create")) {
+                            writer.write("FAILED: " + serverReturn);
                             writer.println();
                             writer.flush();
-                            System.out.println("Wrote back to client: Failure");
+                        } else if (serverReturn.contains("Invalid input")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
                         } else {
-                            writer.write("FAILURE: An exception was thrown");
+                            writer.write("FAILED: An exception occurred while creating user");
                             writer.println();
                             writer.flush();
-                            System.out.println("Wrote back to client: Exception");
                         }
                         serverReturn = null;
                     }
                     case "GETUSER" -> {
-                        // WARNING: I'd probably make a method that gets called that way we can just
-                        // individually test each method in the test cases
                         // Format: GETUSER:USERNAME
                         serverReturn = getUser(input, writer);
-                        System.out.println( "LINE 125: " + serverReturn);
-                        if (serverReturn == null) {
-                            writer.write("ERROR: CANNOT BE EMPTY");
+                        if (serverReturn.contains("User Data")) { // user found
+                            writer.write("SUCCESS: " + serverReturn); // Send back user data
                             writer.println();
                             writer.flush();
-                            System.out.println("Wrote back to client: Empty Input");
-                        } else if (serverReturn.contains("User Data")) {
-                            writer.write(serverReturn); // Send back user data
-                            writer.println();
-                            writer.flush();
-                            System.out.println(serverReturn);
                         } else if (serverReturn.contains("could not be found")) {
-                            writer.write(serverReturn);
+                            writer.write("FAILED: " + serverReturn);
                             writer.println();
                             writer.flush();
-                            System.out.println(serverReturn);
                         } else if (serverReturn.contains("Failed to retrieve")) {
-                            writer.write("FAILED:Failed to retrieve user");
+                            writer.write("FAILED :" + serverReturn);
                             writer.println();
                             writer.flush();
-                            System.out.println(serverReturn);
+                        } else if (serverReturn.contains("Invalid input")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
                         } else {
-                            writer.write("FAILED:An exception occurred while retrieving user data");
+                            writer.write("FAILED: An exception occurred while retrieving user data");
                             writer.println();
                             writer.flush();
-                            System.out.println("Exception caught while retrieving user data");
                         }
                         serverReturn = null;
                     }
                     case "DELETEUSER" -> {
-                        // WARNING: I'd probably make a method that gets called that way we can just
-                        // individually test each method in the test cases
                         // Format: DELETEUSER:USERNAME
                         serverReturn = deleteUser(input, writer);
-                        if (serverReturn == null) {
-                            writer.write("ERROR: CANNOT BE EMPTY");
+                        if (serverReturn.contains("successfully deleted")) {
+                            writer.write("SUCCESS: " + serverReturn);
                             writer.println();
                             writer.flush();
-                            System.out.println("Wrote back to client: Empty Input");
+                        } else if (serverReturn.contains("could not be found")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("Failed to delete user")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("Invalid input")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
                         } else {
-                            writer.write(serverReturn);
+                            writer.write("FAILED: An exception occurred while deleting user");
                             writer.println();
                             writer.flush();
                         }
-                        serverReturn = null;
                     }
                     case "EDIT" -> {
-                        // Should only need formatting like EDIT:Bio:email or whatever else, but because username is already
-                        // saved in line 50, you can just draw the username from that variable.
+                        // Format: EDIT:USERNAME:PASSWORD:EMAIL:BIO
                         serverReturn = editUser(input, writer);
-                        manager.populateHashMap();
-                        if (serverReturn.contains("error")) {
-                            writer.write("An error occurred while processing the request.");
+                        if (serverReturn.contains("successfully")) {
+                            writer.write("SUCCESS: " + serverReturn);
                             writer.println();
                             writer.flush();
-                            System.out.println("Sent editUser error occurred to client");
+                        } else if (serverReturn.contains("Invalid input")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("could not be found")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("Failed to update")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
                         } else {
-                            writer.write(serverReturn);
+                            writer.write("FAILED: An exception occurred while editing user");
                             writer.println();
                             writer.flush();
-                            System.out.println("Sent editUser result to client");
                         }
                     }
                     case "ADDFRIEND" -> {
-                        // WARNING: I'd probably make a method that gets called that way we can just
-                        // individually test each method in the test cases
+                        // Format: ADDFRIEND:USER:FRIEND
+                        serverReturn = addFriend(input);
+                        if (serverReturn.contains("Invalid Input")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("Cannot find User")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("successfully")) {
+                            writer.write("SUCCESS: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("Failed")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("could not be found")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else {
+                            writer.write("FAILED: An exception occurred while adding friend");
+                            writer.println();
+                            writer.flush();
+                        }
+
                     }
                     case "UNFRIEND" -> {
-                        // WARNING: I'd probably make a method that gets called that way we can just
-                        // individually test each method in the test cases
+                        // Format: UNFRIEND:USER:FRIEND
+                        serverReturn = unfriend(input);
+                        if (serverReturn.contains("Invalid Input")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("Cannot find User")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("successfully")) {
+                            writer.write("SUCCESS: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("could not be found")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else {
+                            writer.write("FAILED: An exception occurred while unfriending user");
+                            writer.println();
+                            writer.flush();
+                        }
                     }
                     case "BLOCK" -> {
                         // Format: BLOCK:BLOCKER:BLOCKED
-                        serverReturn = blockUser(input);
+                        synchronized(manager) {
+                            serverReturn = blockUser(input);
+                        }
+                        if (serverReturn.contains("Invalid Input")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("Cannot block yourself")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("does not exist")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("already blocked")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("successfully blocked")) {
+                            writer.write("SUCCESS: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else {
+                            writer.write("FAILED: An exception occurred while blocking user");
+                            writer.println();
+                            writer.flush();
+                        }
                     }
                     case "UNBLOCK" -> {
-
+                        // Format: UNBLOCK:BLOCKER:UNBLOCKED
+                        synchronized (manager) {
+                            serverReturn = unblockUser(input);
+                        }
+                        if (serverReturn.contains("Invalid Input")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("Cannot unblock yourself")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("does not exist")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("not currently blocked")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("successfully unblocked")) {
+                            writer.write("SUCCESS: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else {
+                            writer.write("FAILED: An exception occurred while unblocking user");
+                            writer.println();
+                            writer.flush();
+                        }
                     }
                     case "SENDMESSAGE" -> {
-
+                        // Format: SENDMESSAGE:SENDER:RECEIVER:MESSAGE
+                        serverReturn = sendMessage(input, writer);
+                        if (serverReturn.contains("User") && serverReturn.contains("could not be found")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("successfully")) {
+                            writer.write("SUCCESS: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("An error occurred while sending the message")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("Failed to")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else {
+                            writer.write("FAILED: An exception occurred while sending message");
+                            writer.println();
+                            writer.flush();
+                        }
                     }
                     case "LOGOUT" -> {
                         // Do whatever to log out and then exit the while true loop to end the server thread
                         logout = true;
-                        break;
+                        if(logout){
+                            writer.write("SUCCESS: Logout Success");
+                            writer.println();
+                            writer.flush();
+                        } else {
+                            writer.write("FAILED: Logout Failed");
+                            writer.println();
+                            writer.flush();
+                        }
+                        break; //stop the while loop
+                    }
+                    default -> {
+                        writer.write("Invalid formatting command");
+                        writer.println();
+                        writer.flush();
+                        System.out.println("Invalid command format sent");
                     }
                 }
             }
@@ -217,23 +374,100 @@ public class ThreadedServer extends Thread implements SharedResources {
         }
     }
 
+    public String addFriend(String input) {
+        synchronized(manager) {
+            manager.populateHashMap();
+        }
+        // Format: ADDFRIEND:USER:FRIEND
+        String[] parts = input.split(":");
+
+        if(parts.length != 3) {
+            return "Error: Invalid Input";
+        }
+
+        String username = parts[1];
+        String friend = parts[2];
+
+        // Check if the friend exists
+        synchronized(manager) {
+            if (!manager.getIdTracker().containsKey(friend)) {
+                return "Cannot find User" + friend;
+            }
+        }
+
+        // Use the UserManager's addFriend method to update the friend's list
+        String serverReturn = manager.addFriend(username, friend);
+        return serverReturn;
+    }
+
+    public String unfriend(String input) {
+        synchronized(manager) {
+            manager.populateHashMap();
+        }
+        // Format: UNFRIEND:USER:FRIEND
+        String [] parts = input.split(":");
+
+        if(parts.length != 3) {
+            return "Error: Invalid Input";
+        }
+
+        String username = parts[1];
+        String friend = parts[2];
+
+        // Check if the friend exists
+        synchronized(manager) {
+            if (!manager.getIdTracker().containsKey(friend)) {
+                return "Cannot find User" + friend;
+            }
+        }
+        // Use the UserManager's unfriend method to update the friend's list
+        String serverReturn = manager.unfriend(username, friend);
+
+        return serverReturn;
+    }
+
+    public String sendMessage(String input, PrintWriter writer) {
+        // Format: SENDMESSAGE:SENDER:RECEIVER:MESSAGE
+        synchronized(manager) {
+            manager.populateHashMap();
+        }
+
+        String[] parts = input.split(":");
+        if (parts.length != 4) {
+            return "Error: Invalid Input";
+        }
+
+        String sender = parts[1];
+        String receiver = parts[2];
+        String message = parts[3];
+
+        MessageManager messageManager = new MessageManager(sender, receiver);
+        messageManager.populateHashMap();
+        ArrayList<String> a = messageManager.idTrackerToString();
+
+        String serverReturn = messageManager.sendMessage(receiver, message);
+        return serverReturn;
+    }
+
     // I'm just gonna have the login method return a String for the username, everything else can probably return void
     public String login(String input, PrintWriter writer) {
-        manager.populateHashMap();
-        // Have login input string be "LOGIN:USERNAME:PASSWORD" so if it begins with 'LOGIN',
-        // then we know that there's two fields to read for, USERNAME and PASSWORD
-        String username = input.substring(input.indexOf(":") + 1);
-        username = username.substring(0, username.indexOf(":"));
-        String password = input.substring(input.indexOf(":") + 1);
-        password = password.substring(password.indexOf(":") + 1);
-        // Need to find out how to use authenticator, ask Eric
-        // Attempt to authenticate using input username and password
+        // Format: LOGIN:USERNAME:PASSWORD
+        synchronized(manager) {
+            manager.populateHashMap();
+        }
+
+        String parts[] = input.split(":");
+        if (parts.length != 3) {
+            return "Error: Invalid Input";
+        }
+
+        String username = parts[1];
+        String password = parts[2];
+
+        // Authenticate the user
         boolean successfulLogin = authenticator.authenticate(username, password);
         // Write to the client whether the login succeeded or failed.
-        // Could be a string like this or the words "true" or "false" and just parseBoolean on the client end
         if (successfulLogin) {
-            // The client needs to know the username if it's successful, to know which
-            // GUI to show, so we're just going to relay it from the server here
             return "SUCCESS: " + username;
         } else {
             return "FAILED: " + username;
@@ -242,149 +476,119 @@ public class ThreadedServer extends Thread implements SharedResources {
 
     // NOTE: THIS METHOD WAS WRITTEN BY PRISHA. COMMITTED BY WYATT TO PREVENT GITHUB CONFLICTS
     public String createUser(String input, PrintWriter writer) {
-        manager.populateHashMap();
-        // Ensure the input format is correct, e.g., "CREATEUSER:USERNAME:PASSWORD:EMAIL:BIO"
-        if (!input.startsWith("CREATEUSER:")) {
-            writer.write("FAILED:Invalid command format");
-            writer.println();
-            writer.flush();
+        // Format: CREATEUSER:USERNAME:PASSWORD:EMAIL:BIO
+        synchronized(manager) {
+            manager.populateHashMap();
         }
-        // ACTION:USERNAME:PASSWORD:EMAIL:BIO
-        // Extract the username and password from the input string
-        String username = input.substring(input.indexOf(":") + 1);
-        username = username.substring(0, username.indexOf(":"));
-        String password = input.substring(input.indexOf(":") + 1);
-        password = password.substring(password.indexOf(":") + 1);
-        password = password.substring(0, password.indexOf(":"));
-        String email = input.substring(input.indexOf(":") + 1);
-        email = email.substring(email.indexOf(":") + 1);
-        email = email.substring(email.indexOf(":") + 1);
-        email = email.substring(0, email.indexOf(":"));
-        String bio = input.substring(input.indexOf(":") + 1);
-        bio = bio.substring(bio.indexOf(":") + 1);
-        bio = bio.substring(bio.indexOf(":") + 1);
-        bio = bio.substring(bio.indexOf(":") + 1);
 
-        // Attempt to create a new user using the username and password
-        String userCreated = manager.createUser(username, password, email, bio, null); // Assuming there's a createUser method
+        String parts[] = input.split(":");
+        if (parts.length != 5) {
+            return "Error: Invalid input";
+        }
 
-        // Respond to the client depending on whether the user creation was successful or not
-        if (userCreated.contains("successfully")) {
-            return "SUCCESS: " + username;
-        }
-        if (userCreated.contains("already exists")) {
-            return "FAILURE:" + username + "|Username already exists";
-        }
-        if (userCreated.contains("Failed")) {
-            return "FAILED:" + username;
-        } else {
-            //I'm not sure how to do this last else statement for the final exception.
-            return "EXCEPTION:";
-        }
+        String username = parts[1];
+        String password = parts[2];
+        String email = parts[3];
+        String bio = parts[4];
+
+        String serverReturn = manager.createUser(username, password, email, bio, null);
+        return serverReturn;
     }
 
     // NOTE: THIS METHOD WAS WRITTEN BY PRISHA. COMMITTED BY WYATT TO PREVENT GITHUB CONFLICTS
     public String getUser(String input, PrintWriter writer) {
-        manager.populateHashMap();
-        String userReturn;
-        String username = input.substring(input.indexOf(":") + 1);
-        try {
-            // Check if the username is provided
-            if (username == null || username.trim().isEmpty()) {
-                writer.write("FAILED:Username cannot be empty");
-                writer.println();
-                writer.flush();
-                return null; // Exit the method if the username is invalid
-            }
-
-            userReturn = manager.getUser(username);
-
-            if (userReturn.contains("Data")) {
-                // If the user data is retrieved successfully, send the response back to the client
-                System.out.println("Method return: " + userReturn);
-                return userReturn;
-            }
-            if (userReturn.contains("found")) {
-                System.out.println("Method return: " + userReturn);
-                return userReturn;
-            } else {
-                // Handle other errors (e.g., 500 server error)
-                System.out.println("Method return: " + userReturn);
-                return userReturn;
-            }
-        } catch (Exception e) {
-            // Catch any exceptions, print the stack trace, and send a failure message to the client
-            e.printStackTrace();
-            return "FAILED:An exception occurred while retrieving user data";
+        // Format: GETUSER:USERNAME
+        synchronized(manager) {
+            manager.populateHashMap();
         }
+
+        String parts[] = input.split(":");
+        if (parts.length != 2) {
+            return "Error: Invalid input";
+        }
+
+        String username = parts[1];
+        if (username == null || username.trim().isEmpty()) {
+            return "Error: Invalid input";
+        }
+
+        String serverReturn = manager.getUser(username);
+        return serverReturn;
     }
 
     // NOTE: THIS METHOD WAS WRITTEN BY ANEESH. COMMITTED BY WYATT TO PREVENT GITHUB CONFLICTS
     public String deleteUser(String input, PrintWriter writer) {
-        // Update the HashMap to ensure it has the latest data
-        manager.populateHashMap();
-
-        // Parse the input to extract the username
-        String username = input.substring(input.indexOf(":") + 1).trim();
-
-        if (username.isEmpty()) {
-            // If no username is provided in the input, send a failure message to the client
-            writer.write("FAILED: Username not specified.");
-            writer.println();
-            writer.flush();
-            return null;
+        // Format: DELETEUSER:USERNAME
+        synchronized(manager) {
+            manager.populateHashMap();
         }
 
-        String deleteResult = manager.deleteUser(username);
+        String parts[] = input.split(":");
+        String username = parts[1];
+        if (parts.length != 2) {
+            return "Error: Invalid input";
+        }
 
-        //System.out.println("debug result " + deleteResult);
+        if (username == null || username.trim().isEmpty()) {
+            return "Error: Invalid input";
+        }
 
-        return deleteResult;
+        String serverReturn = manager.deleteUser(username);
+        return serverReturn;
+    }
+
+    public String blockUser(String input) {
+        synchronized(manager) {
+            manager.populateHashMap();
+        }
+        // Format: BLOCKUSER:BLOCKER:BLOCKED
+        String[] parts = input.split(":");
+        if (parts.length != 3) {
+            return "Error: Invalid Input";
+        }
+
+        String blocker = parts[1];
+        String blocked = parts[2];
+
+        String serverReturn = manager.block(blocker, blocked);
+        return serverReturn;
+    }
+
+    // Note: Written by Wyatt
+    public String unblockUser(String input) {
+        synchronized(manager) {
+            manager.populateHashMap();
+        }
+        // Format: UNBLOCK:BLOCKER:UNBLOCKED
+        String[] parts = input.split(":");
+        if (parts.length != 3) {
+            return "Error: Invalid Input";
+        }
+
+        String blocker = parts[1];
+        String unblocked = parts[2];
+
+        String serverReturn = manager.unblock(blocker, unblocked);
+        return serverReturn;
     }
 
     // NOTE: THIS METHOD WAS WRITTEN BY ANEESH. COMMITTED BY WYATT TO PREVENT GITHUB CONFLICTS
     public String editUser(String input, PrintWriter writer){
-
-        manager.populateHashMap();
-
-        try {
-            // Parse the input to extract necessary fields
-            // Example input format: "EDIT:USERNAME:PASSWORD:EMAIL:BIO"
-
-            String[] parts = input.split(":");
-
-            // Ensure we have the correct format (5 expected parts: EDIT, username, password, email, bio)
-            if (parts.length < 5) {
-                return "Invalid input format. Expected format: EDIT:USERNAME:PASSWORD:EMAIL:BIO";
-            }
-
-            String username = parts[1];
-            String password = parts[2];
-            String email = parts[3];
-            String bio = parts[4];
-            System.out.println(username);
-            System.out.println(email);
-            System.out.println(bio);
-            // Set friends as null (as requested)
-
-            // Call the editUser method in manager to update the user
-            // Input by Eric: call editUser with a null password
-            String result = manager.editUser(username, null, email, bio, null);
-
-            // Send the response back to the client
-
-            return result;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "An error occurred while processing the request.";
+        synchronized(manager) {
+            manager.populateHashMap();
         }
 
-    }
+        String[] parts = input.split(":");
+        if (parts.length != 5) {
+            return "Error: Invalid input";
+        }
 
-    // Note: Written by Wyatt
-    public String blockUser(String input) {
-        // Input will for formatted as BLOCKUSER:BLOCKER:BLOCKED
-        return "placeholder";
+        String username = parts[1];
+        String email = parts[3];
+        String bio = parts[4];
+
+        // set password and friend to null when calling editUser
+        String serverReturn = manager.editUser(username, null, email, bio, null);
+        return serverReturn;
     }
 }

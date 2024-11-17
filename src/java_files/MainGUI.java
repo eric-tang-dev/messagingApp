@@ -24,9 +24,11 @@ public class MainGUI extends Application implements SharedResources {
     @Override
     public void start(Stage primaryStage) {
         // this populates the hashmap that we use to save a local copy of a part of the database
-        manager.populateHashMap(); // do not remove this line of code from the top
+        System.out.println(manager.populateHashMap()); // do not remove this line of code from the top
         boolean huh = manager.writeHashMapToFile(); // do not remove this line of code from the top
-
+        System.out.println(manager.block("Wyatt", "test1"));
+        System.out.println(manager.block("Eric", "test1"));
+        System.out.println(manager.unblock("test2", "Eric"));
         this.primaryStage = primaryStage;
         primaryStage.setTitle("Main Screen");
 
