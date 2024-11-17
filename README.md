@@ -3,12 +3,38 @@
 ## About
 This app is a direct messaging application. The frontend is handled entirely by JavaFX, while the backend and database operations are managed by Django. We use SQLite for our database. Our user model, `myUser`, extends the `User` class provided by `django.contrib.auth`.
 
-## Important Documentation Notes
-1. The UserManager class is the bridge between Python and Java. It contains almost all of the methods that make calls to the SQLite database and return data in a format that we can use in Java.
-2. The MainGUI class is the GUI for our home screen. It is the first GUI displayed. From that GUI, you are able to access all other GUIs in the app. The GUI has some functionality working right now, but we have not configured every button in the GUI to work yet.
-   - You should be able to create a user and login.
-3. The Authenticator class also communicates with the Python backend. It's only purpose is to authenticate the user's login and verify that they have the right username and password combination before authenticating them.
-4. RunLocalTest.java contains test methods for all methods in UserManager.java and Authenticator.java. We will incorporate the other classes such as UserMessage.java later, but they have not been included in the project yet.
+## Class Documentation:
+
+Authenticator
+The Authenticator class is responsible for handling user authentication.
+We use the authentication methods provided by Django’s REST framework. 
+It takes in a username and a password, calls the database to check if those are correct, and then returns a boolean. 
+
+Client
+The Client class is responsible for managing the connection to the server. (In the future this will get merged with GUI).
+We are utilizing the ‘newClientCommand()’ method to take a string input and send that to the server. This string input will reflect potential buttons that the user will be able to click on in the GUI. For now, you can manually code in the string being sent to the server as long as it follows the proper formatting of ThreadedServer’s switch case. 
+
+MessageManager
+The MessageManager class is responsible for handling message operations.
+It provides methods to create messages as well as to manage message storage and retrieval success/unsuccess response from the database.
+
+UserManager
+The `UserManager` class is responsible for managing user data and interactions within the server. It provides methods to create, update, delete, and retrieve user information, as well as adding/removing friends, and blocking/unblocking users. 
+
+- `createUser`: Creates a new user with the specified username and password and other info like email and bio.
+- `editUser`: Updates the information of an existing user, however, it doesn’t allow to change the username or password of that user.
+- `deleteUser`: Deletes the user with the specified user name.
+- `getUser`: Retrieves the user information for the specified user name.
+- `addFriend`: Adds a friend to the user's friend list.
+- `unFriend`: Remove a friend from the user’s friend list.
+- `block`: Blocks the specified user for the given user.
+- `unblock`: Unblocks the specified user for the given user.
+
+ThreadedServer
+This server will act as a mediator between the database and client, reading the input from the client and calling methods that are in UserManager.java. The server then retrieves the response from the database and sends a SUCCESS/FAILED message back to the client. 
+
+Python_backend
+This is a Django project. Inside of it is an application called messaging, which contains most of the logic used, including the serializer, views.py, models.py, and url routing. 
 
 ## IMPORTANT
 Please make sure .gitignore exists in your project's root directory before making any commits to Github. Otherwise, it will create conflicts for everyone. 
