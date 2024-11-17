@@ -10,11 +10,11 @@ The Authenticator class is responsible for handling user authentication.
 We use the authentication methods provided by Django’s REST framework. 
 It takes in a username and a password, calls the database to check if those are correct, and then returns a boolean. 
 
-Client
+Client\n
 The Client class is responsible for managing the connection to the server. (In the future this will get merged with GUI).
 We are utilizing the ‘newClientCommand()’ method to take a string input and send that to the server. This string input will reflect potential buttons that the user will be able to click on in the GUI. For now, you can manually code in the string being sent to the server as long as it follows the proper formatting of ThreadedServer’s switch case. 
 
-MessageManager
+MessageManager\n
 The MessageManager class is responsible for handling message operations.
 It provides methods to create messages as well as to manage message storage and retrieval success/unsuccess response from the database.
 
