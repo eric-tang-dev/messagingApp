@@ -11,7 +11,7 @@ import java.util.stream.*;
 import java.io.*;
 
 // NOTE: ONLY MAKE ONE UserManager OBJECT IN THE PROGRAM
-public class UserManager {
+public class UserManager implements UserManagerInterface {
 
     // it's more useful to store username as the key, and access ID number as the value
     // may change to private variable
@@ -350,6 +350,8 @@ public class UserManager {
 
             if (deleteResponse.statusCode() == 204) {
                 idTracker.remove(username); // delete it from the HashMap too
+                blockedList.remove(username);
+                writeHashMapToFile();
                 return "User " + username + " successfully deleted.";
             } else if (deleteResponse.statusCode() == 404) {
                 return "User " + username + " could not be found.";
