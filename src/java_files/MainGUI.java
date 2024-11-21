@@ -12,6 +12,8 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox; // new import
+import javafx.scene.layout.Priority; // new import
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
@@ -28,8 +30,6 @@ public class MainGUI extends Application implements SharedResources {
         // this populates the hashmap that we use to save a local copy of a part of the database
         manager.populateHashMap(); // do not remove this line of code from the top
         boolean huh = manager.writeHashMapToFile(); // do not remove this line of code from the top
-
-        manager.deleteUser("test");
 
         this.primaryStage = primaryStage;
         primaryStage.setTitle("Main Screen");
@@ -295,6 +295,7 @@ class UserGUI extends Application implements SharedResources {
     private Label terminalOutputLabel = new Label();
     private StringProperty terminalOutput = new SimpleStringProperty("");
     private String username;
+    private ComboBox<String> dropdownMenu;
 
     public UserGUI(Stage primaryStage, String username) {
         this.primaryStage = primaryStage;
@@ -331,7 +332,7 @@ class UserGUI extends Application implements SharedResources {
         Label emailLabel = new Label(email);
         emailLabel.setStyle("-fx-font-size: 14px;");
 
-        ComboBox<String> dropdownMenu = new ComboBox<>();
+        dropdownMenu = new ComboBox<>();
         for (String key: manager.getIdTracker().keySet()) {
             if (key.equals(username)) continue;
             dropdownMenu.getItems().add(key);
@@ -339,24 +340,32 @@ class UserGUI extends Application implements SharedResources {
         dropdownMenu.getItems().add("See All Users");
         dropdownMenu.setPromptText("Search for User");
 
-        Button sendFriendRequestButton = new Button("Send Friend Request");
+        Button addFriendButton = new Button("Add Friend");
+        Button unfriendButton = new Button("Remove Friend");
         Button editDataButton = new Button("Edit Data");
         Button logOutButton = new Button("Log Out");
+        Button viewUserButton = new Button("View User's Profile");
 
         // button actions here
+        addFriendButton.setOnAction(e -> addFriend(username, dropdownMenu));
+        unfriendButton.setOnAction(e -> unfriend(username, dropdownMenu));
         editDataButton.setOnAction(e -> showEdit());
         logOutButton.setOnAction(e -> showLogin());
+        viewUserButton.setOnAction(e -> showViewUser());
         terminalOutputLabel.textProperty().bind(terminalOutput);
 
         // add profile info
         userGrid.add(usernameLabel, 0, 0);
         userGrid.add(bioLabel, 0, 1);
-        userGrid.add(dropdownMenu, 0, 2);
-        userGrid.add(sendFriendRequestButton, 0, 3);
-        userGrid.add(editDataButton, 1, 2);
+        userGrid.add(emailLabel, 0, 2);
+        userGrid.add(dropdownMenu, 0, 3);
+        userGrid.add(viewUserButton, 0, 4);
+        userGrid.add(addFriendButton, 0, 5);
+        userGrid.add(unfriendButton,0,6);
+        userGrid.add(editDataButton, 1, 3);
 
         // RIGHT SIDE OF SCREEN FOR MESSAGES
-        HashMap<String, Integer> friendsMap = manager.getIdTracker();
+        HashMap<String, ArrayList<String>> friendsMap = manager.getFriendsHashMap(userData);
 
         // new grid
         GridPane grid2 = new GridPane();
@@ -366,11 +375,9 @@ class UserGUI extends Application implements SharedResources {
 
         int messageRow = 0;
 
-        for (Map.Entry<String, Integer> entry : friendsMap.entrySet()) {
+        for (Map.Entry<String, ArrayList<String>> entry : friendsMap.entrySet()) {
             String otherUser = entry.getKey();
             if (username.equals(otherUser)) continue;
-
-            List<String> messages = List.of("Hello there!");
 
             VBox messageBox = new VBox();
             messageBox.setPadding(new Insets(15));
@@ -380,8 +387,19 @@ class UserGUI extends Application implements SharedResources {
             Label userLabel = new Label(otherUser);
             userLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
 
-            Label latestMessage = new Label(messages.get(messages.size() - 1));
+            // display the last message sent, or none
+            ArrayList<String> messages = entry.getValue();
+            Label latestMessage;
+            if (messages.isEmpty()) {
+                continue;
+            } else {
+                String[] messageData = messages.getLast().split("-");
+                latestMessage = new Label(messageData[0]);
+            }
             latestMessage.setStyle("-fx-font-size: 14px; -fx-text-fill: #555555;");
+
+            // to click into MessageGUI
+            messageBox.setOnMouseClicked(event -> showMessage(otherUser));
 
             messageBox.getChildren().addAll(userLabel, latestMessage);
             grid2.add(messageBox, 0, messageRow);
@@ -411,6 +429,15 @@ class UserGUI extends Application implements SharedResources {
         primaryStage.show();
     }
 
+    private void showViewUser() {
+        ViewGUI viewGUI = new ViewGUI(primaryStage, username, dropdownMenu.getValue());
+        try {
+            viewGUI.start(primaryStage);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void showLogin() {
         LoginGUI loginGUI = new LoginGUI();
         try {
@@ -426,6 +453,45 @@ class UserGUI extends Application implements SharedResources {
             editGUI.start(primaryStage);
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private void showMessage(String user) {
+        MessageGUI messageGUI = new MessageGUI(this.username, user);
+        try {
+            messageGUI.start(primaryStage);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addFriend(String username, ComboBox<String> dropdownMenu) {
+        String selectedFriend = dropdownMenu.getValue();
+        System.out.println("Add Friend button clicked. Selected friend: " + selectedFriend);
+
+        if (selectedFriend == null || selectedFriend.equals("See All Users")) {
+            System.out.println("Invalid friend selection.");
+            terminalOutput.set("Please select a valid user to add as a friend.");
+        } else {
+            System.out.println("Calling manager.addFriend with username: " + username + " and friend: " + selectedFriend);
+            String result = manager.addFriend(username, selectedFriend);
+            System.out.println("Result from manager.addFriend: " + result);
+            terminalOutput.set(result);
+        }
+    }
+
+    private void unfriend(String username, ComboBox<String> dropdownMenu) {
+        String selectedFriend = dropdownMenu.getValue(); // Get the selected user
+        System.out.println("Unfriend button clicked. Selected friend: " + selectedFriend);
+
+        if (selectedFriend == null || selectedFriend.equals("See All Users")) {
+            System.out.println("Invalid friend selection.");
+            terminalOutput.set("Please select a valid user to unfriend.");
+        } else {
+            System.out.println("Calling manager.unfriend with username: " + username + " and friend: " + selectedFriend);
+            String result = manager.unfriend(username, selectedFriend);
+            System.out.println("Result from manager.unfriend: " + result);
+            terminalOutput.set(result); // Display the result in the terminal output
         }
     }
 
@@ -554,5 +620,231 @@ class EditGUI extends Application implements SharedResources {
         terminalOutput.set(newValue);
     }
 }
+
+class MessageGUI extends Application implements SharedResources {
+
+    private Stage primaryStage;
+    private Label terminalOutputLabel = new Label();
+    private StringProperty terminalOutput = new SimpleStringProperty("");
+    private String user1;
+    private String user2;
+    private MessageManager mm;
+
+    public MessageGUI(String user1, String user2) {
+        this.user1 = user1;
+        this.user2 = user2;
+        mm = new MessageManager(user1, user2);
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
+        primaryStage.setTitle("Chat with " + user2);
+
+        // get user data
+        String user1data = manager.getUser(user1);
+
+        // use a method to get the friends hashmap
+        HashMap<String, ArrayList<String>> user1friends = mm.getFriendsHashMap(user1data);
+
+        // get the chain of messages with user 2 by searching for the key
+        ArrayList<String> messageChain = user1friends.get(user2);
+        String[] messages = messageChain.toArray(new String[0]);
+
+        // create grid
+        VBox root = new VBox();
+        root.setPadding(new Insets(10));
+        root.setSpacing(10);
+        root.setStyle("-fx-background-color: #ffffff;");
+
+        // back button
+        HBox backBox = new HBox();
+        backBox.setSpacing(10);
+        backBox.setPadding(new Insets(10));
+        backBox.setAlignment(Pos.CENTER_LEFT);
+
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> { showUser(); });
+        backButton.setStyle("-fx-translate-x: 150px;");
+
+        // title
+        Label chatTitle = new Label("Chat with " + user2);
+        chatTitle.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        backBox.getChildren().addAll(chatTitle, backButton);
+
+        root.getChildren().add(backBox);
+
+        // Chat display area
+        VBox chatBox = new VBox();
+        chatBox.setPadding(new Insets(10));
+        chatBox.setSpacing(10);
+        chatBox.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #ddd; -fx-border-radius: 10; -fx-padding: 10;");
+        chatBox.setPrefSize(400, 900);
+        VBox.setVgrow(chatBox, Priority.ALWAYS); // Make chatBox grow as the window resizes
+
+        for (String message : messages) {
+            String[] messageData = message.split("-");
+            if (messageData.length != 3) {
+                continue;
+            }
+            Label messageLabel = new Label();
+            if (messageData[1].equals("1")) {
+                messageLabel.setText(messageData[0]);
+            } else {
+                messageLabel.setText(messageData[0]);
+            }
+            messageLabel.setStyle(
+                    "-fx-font-family: 'Arial';" +
+                            "-fx-font-size: 14px;" +
+                            "-fx-background-color: #e0e0e0;" + // Light gray bubble
+                            "-fx-padding: 10px;" +
+                            "-fx-border-radius: 15px;" +
+                            "-fx-background-radius: 15px;"
+            );
+
+            HBox messageBubble = new HBox();
+            if (messageData[1].equals("1")) {
+                messageLabel.setStyle(messageLabel.getStyle() + "-fx-background-color: #d1f0ff;");
+                messageBubble.setAlignment(Pos.CENTER_RIGHT); // Align to left within the HBox
+                messageBubble.getChildren().add(messageLabel);
+            } else {
+                messageBubble.setAlignment(Pos.CENTER_LEFT); // Align to right within the HBox
+                messageBubble.getChildren().add(messageLabel);
+            }
+            chatBox.getChildren().add(messageBubble);
+        }
+
+        root.getChildren().add(chatBox);
+
+        // Input area for typing messages
+        VBox inputBox = new VBox();
+        inputBox.setPadding(new Insets(10));
+        inputBox.setSpacing(5);
+        inputBox.setStyle("-fx-background-color: #ffffff; -fx-border-color: #ddd; -fx-border-radius: 5;");
+
+        TextField messageField = new TextField();
+        messageField.setPromptText("Type your message...");
+        messageField.setStyle("-fx-font-size: 14px;");
+
+        Button sendButton = new Button("Send");
+        sendButton.setAlignment(Pos.BOTTOM_RIGHT);
+        sendButton.setOnAction(e -> {
+            // first, send the message on the backend
+            mm.sendMessage(user1, messageField.getText());
+
+            // create a new label and add it to the chatbox
+            Label newMessage = new Label(messageField.getText());
+            newMessage.setStyle(
+                    "-fx-font-family: 'Arial';" +
+                            "-fx-font-size: 14px;" +
+                            "-fx-background-color: #d1f0ff;" + // Light blue bubble for user
+                            "-fx-padding: 10px;" +
+                            "-fx-border-radius: 15px;" +
+                            "-fx-background-radius: 15px;"
+            );
+
+            HBox newMessageBubble = new HBox();
+            newMessageBubble.setAlignment(Pos.CENTER_RIGHT); // Align to the right for user messages
+            newMessageBubble.getChildren().add(newMessage);
+
+            // add to chatBox
+            chatBox.getChildren().add(newMessageBubble);
+            messageField.clear();
+        }); // Placeholder send action
+
+        inputBox.getChildren().addAll(messageField, sendButton);
+        root.getChildren().add(inputBox);
+
+        // Set up the scene
+        Scene scene = new Scene(root, 400, 1000);
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private void showUser() {
+        UserGUI userGUI = new UserGUI(primaryStage, user1);
+        try {
+            userGUI.start(primaryStage);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+class ViewGUI extends Application implements SharedResources {
+    private Stage primaryStage; // current GUI being displayed
+    private Label terminalOutputLabel = new Label();
+    private StringProperty terminalOutput = new SimpleStringProperty("");
+    private String username;
+    private String viewedUser;
+
+    public ViewGUI(Stage primaryStage, String username, String viewedUser) {
+        this.primaryStage = primaryStage;
+        this.username = username;
+        this.viewedUser = viewedUser;
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        // data that is available
+        String userData = manager.getUser(viewedUser);
+        /*** Example Output of userData
+         * {"id":4,"username":"test2","email":"test@ourdue.edu","bio":"test","friends":{}}
+         */
+        int id = Integer.parseInt(userData.split("\"id\":")[1].split(",")[0].trim());
+        String viewedUsername = userData.split("\"username\":\"")[1].split("\"")[0];
+        String viewedEmail = userData.split("\"email\":\"")[1].split("\"")[0];
+        String viewedBio = userData.split("\"bio\":\"")[1].split("\"")[0];
+
+        // initialize new Stage here
+        this.primaryStage = primaryStage;
+        primaryStage.setTitle(viewedUsername + "'s Profile");
+
+        // Create a single grid for both profile and messages
+        GridPane userGrid = new GridPane();
+        userGrid.setPadding(new Insets(10));
+        userGrid.setHgap(20);
+        userGrid.setVgap(10);
+
+        // Profile info section (left side)
+        Label usernameLabel = new Label(viewedUsername);
+        usernameLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        Label bioLabel = new Label(viewedBio);
+        bioLabel.setStyle("-fx-font-size: 14px;");
+        Label emailLabel = new Label(viewedEmail);
+        emailLabel.setStyle("-fx-font-size: 14px;");
+
+        Button backButton = new Button("Back");
+
+        backButton.setOnAction(e -> showUser());
+
+        userGrid.add(usernameLabel, 0, 0);
+        userGrid.add(bioLabel, 0, 1);
+        userGrid.add(emailLabel, 0, 2);
+        userGrid.add(backButton, 0, 10);
+
+        VBox root = new VBox();
+        root.setPadding(new Insets(20));
+
+        Scene scene = new Scene(root, 550, 1000);
+        primaryStage.setScene(scene);
+        primaryStage.show();
+
+        userGrid.prefHeightProperty().bind(root.heightProperty().multiply(0.35));
+        root.getChildren().addAll(userGrid);
+    }
+
+    private void showUser() {
+        UserGUI userGUI = new UserGUI(primaryStage, this.username);
+        try {
+            userGUI.start(primaryStage);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
 
 
