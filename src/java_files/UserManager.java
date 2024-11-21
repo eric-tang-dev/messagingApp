@@ -22,6 +22,37 @@ public class UserManager implements UserManagerInterface {
         // Constructor can be empty since idTracker is already initialized
     }
 
+    public HashMap<String, ArrayList<String>> getFriendsHashMap(String response) {
+        String friendsData = "\"friends\":{";
+        int friendsStart = response.indexOf(friendsData);
+
+        int friendsEnd = response.indexOf("}", friendsStart) + 1; // End of the friends object
+        String friendsSection = response.substring(friendsStart, friendsEnd);
+
+        HashMap<String, ArrayList<String>> friendsMap = new HashMap<>();
+
+        String title = friendsSection.replaceFirst("\"friends\":\\{", "").replaceAll("}$", "");
+
+        String[] friendEntries = title.split("],");
+
+        for (String entry : friendEntries) {
+            String[] parts = entry.split(":", 2);
+            if (parts.length < 2) continue;
+
+            String friendName = parts[0].replaceAll("[\"{}]", "").trim();
+
+            String[] messagesArray = parts[1].replaceAll("[\\[\\]\"]", "").split(",");
+            ArrayList<String> messages = new ArrayList<>(Arrays.asList(messagesArray));
+            for (int i = 0; i < messages.size(); i++) {
+                messages.set(i, messages.get(i).trim());
+            }
+
+            friendsMap.put(friendName, messages);
+        }
+
+        return friendsMap;
+    }
+
     public String populateHashMap() {
 //         first, populate the blockedList, since it's easier
         try (BufferedReader bfr = new BufferedReader(new FileReader("blockedList.txt"))) {
