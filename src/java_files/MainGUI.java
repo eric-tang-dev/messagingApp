@@ -430,11 +430,16 @@ class UserGUI extends Application implements SharedResources {
     }
 
     private void showViewUser() {
-        ViewGUI viewGUI = new ViewGUI(primaryStage, username, dropdownMenu.getValue());
-        try {
-            viewGUI.start(primaryStage);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (dropdownMenu.getValue() == null || dropdownMenu.getValue().equals("See All Users")) {
+            System.out.println("No user selected.");
+            terminalOutput.set("Please select a valid user to view.");
+        } else {
+            ViewGUI viewGUI = new ViewGUI(primaryStage, username, dropdownMenu.getValue());
+            try {
+                viewGUI.start(primaryStage);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
