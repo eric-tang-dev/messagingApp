@@ -534,6 +534,11 @@ class EditGUI extends Application implements SharedResources {
         TextField username = new TextField();
         editGrid.add(username, 1, 0);
 
+        // old username
+        editGrid.add(new Label("Current Username:"), 0, 1);
+        TextField oldusername = new TextField();
+        editGrid.add(oldusername, 1, 1);
+
         // edit email
         editGrid.add(new Label("Edit Email:"), 0, 2);
         TextField email = new TextField();
@@ -543,6 +548,11 @@ class EditGUI extends Application implements SharedResources {
         editGrid.add(new Label("Edit Bio:"), 0, 3);
         TextField bio = new TextField();
         editGrid.add(bio, 1, 3);
+
+        // retype password
+        editGrid.add(new Label("Current Password:"), 0, 4);
+        PasswordField passwordField = new PasswordField();
+        editGrid.add(passwordField, 1, 4);
 
         // terminal output
         editGrid.add(new Label("Terminal Output:"), 0, 7);
@@ -561,10 +571,11 @@ class EditGUI extends Application implements SharedResources {
         backButton.setOnAction(e -> showUser(user));
         saveButton.setOnAction(e -> {
             // get text fom user and trim
+            String oldUsername = oldusername.getText().trim();
             String newUsername = username.getText().trim();
             String newEmail = email.getText().trim();
             String newBio = bio.getText().trim();
-
+            String password = passwordField.getText().trim();
             // validation of fields
             while (true) {
                 if (newUsername.isEmpty()) {
@@ -576,7 +587,21 @@ class EditGUI extends Application implements SharedResources {
                 } else if (newBio.isEmpty()) {
                     terminalOutput.set("Bio cannot be empty. Please provide some information in your bio.");
                     break;
-                } else {
+                } else if (password.isEmpty()) {
+                    terminalOutput.set("Password cannot be empty. Please provide your password.");
+                    break;
+                } else if (oldUsername.isEmpty()) {
+                    terminalOutput.set("Current Username cannot be empty. Please provide your current username.");
+                    break;
+                } else if (password.isEmpty()) {
+                    terminalOutput.set("Password cannot be empty. Please provide your password.");
+                    break;
+                } else if (!authenticator.authenticate(oldUsername, password)) {
+                    terminalOutput.set("Incorrect password. Please provide the correct password.");
+                    break;
+                }
+                else {
+                    terminalOutput.set(manager.editUser2(oldUsername, newUsername, password, newEmail, newBio, null));
                     username.setText(newUsername);
                     email.setText(newEmail);
                     bio.setText(newBio);
@@ -597,8 +622,8 @@ class EditGUI extends Application implements SharedResources {
         terminalOutputLabel.textProperty().bind(terminalOutput);
 
         // Add buttons to the grid
-        editGrid.add(saveButton, 0, 4);
-        editGrid.add(backButton, 1, 4);
+        editGrid.add(saveButton, 0, 5);
+        editGrid.add(backButton, 1, 5);
 
         // More setup - using a VBox as the root container
         VBox root = new VBox(editGrid);

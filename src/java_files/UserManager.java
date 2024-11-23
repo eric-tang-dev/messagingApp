@@ -357,6 +357,86 @@ public class UserManager implements UserManagerInterface {
         return "";
     }
 
+    public String editUser2(String oldusername, String username, String password, String email, String bio,
+            HashMap<String, ArrayList<String>> friends) {
+        // version that allow to change the username
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+
+            // user data to be inputted
+            StringBuilder jsonBuilder = new StringBuilder();
+            jsonBuilder.append("{");
+            // authenticate the user
+            // if (!authenticator.authenticate(oldusername, password)) {
+            //     return "Authentication failed.";
+            // }
+
+            populateHashMap();
+            // connect the username to an ID in the Map, but using the old username
+            Integer userId = idTracker.get(oldusername);
+
+            if (username != null && !username.isEmpty()) {
+                jsonBuilder.append("\"username\": \"").append(username).append("\", ");
+            }
+            // if (password != null && !password.isEmpty()) {
+            //     jsonBuilder.append("\"password\": \"").append(password).append("\", ");
+            // }
+            if (email != null && !email.isEmpty()) {
+                jsonBuilder.append("\"email\": \"").append(email).append("\", ");
+            }
+            if (bio != null && !bio.isEmpty()) {
+                jsonBuilder.append("\"bio\": \"").append(bio).append("\", ");
+            }
+
+            // Convert friends to JSON
+            // Same logic as in .createUser()
+            if (friends != null && !friends.isEmpty()) {
+                String friendsToJson = friends.entrySet().stream()
+                        .map(entry -> "\"" + entry.getKey() + "\": " +
+                                entry.getValue().stream()
+                                        .map(friend -> "\"" + friend + "\"")
+                                        .collect(Collectors.joining(", ", "[", "]")))
+                        .collect(Collectors.joining(", ", "{", "}"));
+
+                jsonBuilder.append("\"friends\": ").append(friendsToJson).append(", ");
+            }
+
+            if (jsonBuilder.length() > 1) {
+                jsonBuilder.setLength(jsonBuilder.length() - 2); // Remove extra comma and space
+            }
+            jsonBuilder.append("}");
+            String json = jsonBuilder.toString();
+            System.out.println(json);
+
+            // construct the URI
+            URI uri = new URI("http://127.0.0.1:8000/messaging/users/" + userId + "/");
+
+            // build the PUT request
+            HttpRequest patchRequest = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .header("Content-Type", "application/json")
+                    .method("PATCH", HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            // send the PUT request and handle the response
+            HttpResponse<String> response = client.send(patchRequest, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200 || response.statusCode() == 204) {
+                idTracker.remove(oldusername); // remove the old username from the HashMap
+                populateHashMap(); // populate the HashMap again
+                idTracker.put(username, userId); // add it to the HashMap
+                writeHashMapToFile();
+                return "User updated successfully.";
+            } else if (response.statusCode() == 404) {
+                return "User " + username + " could not be found.";
+            } else {
+                return "Failed to update user. Status code: " + response.statusCode();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
 
     // This DELETES a user PERMANENTLY using its username
     public String deleteUser(String username) {
