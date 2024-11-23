@@ -1,19 +1,44 @@
 package java_files;
 import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.io.*;
 import java.net.*;
 
-public class Client implements SharedResources {
+public class Client extends Application implements SharedResources {
+
     // Hardcoding in the starting port number of the server
     static int portNum = 4242;
+    private Stage primaryStage;
+
+    @Override
+    public void start(Stage primaryStage) throws Exception {
+        this.primaryStage = primaryStage;
+
+        Client client1 = new Client();
+
+        showMain(client1);
+    }
+
+    public void showMain(Client client) {
+        MainGUI mainGUI = new MainGUI(client);
+        try {
+            mainGUI.start(primaryStage); // Reuse the primary stage
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void main(String[] args) {
-//        Application.launch(MainGUI.class, args);
-        Client client1 = new Client();
-        Client client2 = new Client();
-        Client client3 = new Client();
+        launch(args);
+//        System.out.println("here");
+//        Client client1 = new Client();
+//        Client client2 = new Client();
+//        Client client3 = new Client();
 
         /**
          *  Here are a few "test" cases that we've laid out to attempt to simulate race conditions.
@@ -90,9 +115,9 @@ public class Client implements SharedResources {
 
         // These 'logout' commands are required, as they tell the server thread to terminate. It will still function without
         // these methods, but the server threads will forever be waiting for inputs instead of terminating.
-        client1.newClientCommand("LOGOUT:");
-        client2.newClientCommand("LOGOUT:");
-        client3.newClientCommand("LOGOUT:");
+//        client1.newClientCommand("LOGOUT:");
+//        client2.newClientCommand("LOGOUT:");
+//        client3.newClientCommand("LOGOUT:");
 //        MainGUI mainGUI = new MainGUI();
 //        mainGUI.showLogin();
     }
@@ -111,7 +136,7 @@ public class Client implements SharedResources {
             // LOTS OF GUI DISPLAY AND INPUT WILL BE SHOWN HERE. EACH DIALOG WILL WRITE WHAT
             // THE RETURN IS TO THE SERVER. THIS IS MOSTLY PHASE 3 SO I'M WAITING FOR NOW
 
-            //Login Test
+            // Login Test
             writer.write("LOGIN:Wyatt:wpassword");
             writer.println();
             writer.flush();
