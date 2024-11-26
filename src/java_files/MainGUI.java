@@ -24,6 +24,11 @@ import java.io.*;
 public class MainGUI extends Application implements SharedResources {
 
     private Stage primaryStage; // the GUI being displayed
+    private Client client;
+
+    public MainGUI(Client client) {
+        this.client = client;
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -64,7 +69,7 @@ public class MainGUI extends Application implements SharedResources {
     }
 
     private void showCreateUser() {
-        CreateUserGUI createUserGUI = new CreateUserGUI();
+        CreateUserGUI createUserGUI = new CreateUserGUI(client);
         try {
             createUserGUI.start(primaryStage);
         } catch (Exception e) {
@@ -73,7 +78,7 @@ public class MainGUI extends Application implements SharedResources {
     }
 
     public void showLogin() {
-        LoginGUI loginGUI = new LoginGUI();
+        LoginGUI loginGUI = new LoginGUI(client);
         try {
             loginGUI.start(primaryStage);
         } catch (Exception e) {
@@ -89,6 +94,7 @@ public class MainGUI extends Application implements SharedResources {
 class CreateUserGUI extends Application implements SharedResources {
 
     private Stage primaryStage; // current GUI being displayed
+    private Client client;
 
     private TextField usernameField = new TextField();
     private PasswordField passwordField = new PasswordField();
@@ -96,6 +102,10 @@ class CreateUserGUI extends Application implements SharedResources {
     private TextField bioField = new TextField();
     private Label terminalOutputLabel = new Label();
     private StringProperty terminalOutput = new SimpleStringProperty("");
+
+    public CreateUserGUI(Client client) {
+        this.client = client;
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -164,7 +174,7 @@ class CreateUserGUI extends Application implements SharedResources {
             printTerminalOutput("All fields are required.");
         } else {
             handleClear();
-            printTerminalOutput(manager.createUser(username, password, email, bio, null));
+            printTerminalOutput(client.newClientCommand("CREATEUSER:" + username + ":" + password + ":" + email + ":" + bio));
         }
     }
 
@@ -178,7 +188,7 @@ class CreateUserGUI extends Application implements SharedResources {
     }
 
     private void showMain() {
-        MainGUI mainGUI = new MainGUI();
+        MainGUI mainGUI = new MainGUI(client);
         try {
             mainGUI.start(primaryStage); // Reuse the primary stage
         } catch (Exception e) {
@@ -195,11 +205,16 @@ class CreateUserGUI extends Application implements SharedResources {
 class LoginGUI extends Application implements SharedResources{
 
     private Stage primaryStage; // Current GUI being displayed
+    private Client client;
 
     private TextField usernameField = new TextField();
     private PasswordField passwordField = new PasswordField();
     private Label terminalOutputLabel = new Label();
     private StringProperty terminalOutput = new SimpleStringProperty("");
+
+    public LoginGUI(Client client) {
+        this.client = client;
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -253,7 +268,7 @@ class LoginGUI extends Application implements SharedResources{
     }
 
     private void handleSubmit(String username, String password) {
-        if (authenticator.authenticate(username, password)) {
+        if (client.newClientCommand("LOGIN:" + username + ":" + password).contains("SUCCESS")) {
             printTerminalOutput("User successfully logged in.");
             showUserProfile(username);
         } else {
@@ -262,7 +277,7 @@ class LoginGUI extends Application implements SharedResources{
     }
 
     private void showMain() {
-        MainGUI mainGUI = new MainGUI();
+        MainGUI mainGUI = new MainGUI(client);
         try {
             mainGUI.start(primaryStage); // Reuse the primary stage
         } catch (Exception e) {
@@ -275,7 +290,7 @@ class LoginGUI extends Application implements SharedResources{
         // to write this GUI and on, likely need to create an interface, where idTracker is static
         // interface -> only purpose is so each GUI has access to necessary data
         // data stored is the manager and authenticator in the interface
-        UserGUI userGUI = new UserGUI(primaryStage, username);
+        UserGUI userGUI = new UserGUI(primaryStage, username, client);
         try {
             userGUI.start(primaryStage); // Reuse the primary stage
         } catch (Exception e) {
@@ -292,20 +307,23 @@ class LoginGUI extends Application implements SharedResources{
 class UserGUI extends Application implements SharedResources {
 
     private Stage primaryStage; // current GUI being displayed
+    private Client client;
+
     private Label terminalOutputLabel = new Label();
     private StringProperty terminalOutput = new SimpleStringProperty("");
     private String username;
     private ComboBox<String> dropdownMenu;
 
-    public UserGUI(Stage primaryStage, String username) {
+    public UserGUI(Stage primaryStage, String username, Client client) {
         this.primaryStage = primaryStage;
         this.username = username;
+        this.client = client;
     }
 
     @Override
     public void start(Stage primaryStage) {
         // data that is available
-        String userData = manager.getUser(this.username);
+        String userData = client.newClientCommand("GETUSER:" + username);
         /*** Example Output of userData
          * {"id":4,"username":"test2","email":"test@ourdue.edu","bio":"test","friends":{}}
          */
@@ -345,6 +363,8 @@ class UserGUI extends Application implements SharedResources {
         Button editDataButton = new Button("Edit Data");
         Button logOutButton = new Button("Log Out");
         Button viewUserButton = new Button("View User's Profile");
+        Button blockButton = new Button("Block User");
+        Button unblockButton = new Button("Unblock User");
 
         // button actions here
         addFriendButton.setOnAction(e -> addFriend(username, dropdownMenu));
@@ -352,6 +372,8 @@ class UserGUI extends Application implements SharedResources {
         editDataButton.setOnAction(e -> showEdit());
         logOutButton.setOnAction(e -> showLogin());
         viewUserButton.setOnAction(e -> showViewUser());
+        blockButton.setOnAction(e -> block(dropdownMenu));
+        unblockButton.setOnAction(e -> unblock(dropdownMenu));
         terminalOutputLabel.textProperty().bind(terminalOutput);
 
         // add profile info
@@ -362,6 +384,8 @@ class UserGUI extends Application implements SharedResources {
         userGrid.add(viewUserButton, 0, 4);
         userGrid.add(addFriendButton, 0, 5);
         userGrid.add(unfriendButton,0,6);
+        userGrid.add(blockButton,0,7);
+        userGrid.add(unblockButton,0,8);
         userGrid.add(editDataButton, 1, 3);
 
         // RIGHT SIDE OF SCREEN FOR MESSAGES
@@ -434,7 +458,7 @@ class UserGUI extends Application implements SharedResources {
             System.out.println("No user selected.");
             terminalOutput.set("Please select a valid user to view.");
         } else {
-            ViewGUI viewGUI = new ViewGUI(primaryStage, username, dropdownMenu.getValue());
+            ViewGUI viewGUI = new ViewGUI(primaryStage, username, dropdownMenu.getValue(), client);
             try {
                 viewGUI.start(primaryStage);
             } catch (Exception e) {
@@ -444,7 +468,7 @@ class UserGUI extends Application implements SharedResources {
     }
 
     private void showLogin() {
-        LoginGUI loginGUI = new LoginGUI();
+        LoginGUI loginGUI = new LoginGUI(client);
         try {
             loginGUI.start(primaryStage);
         } catch (Exception e) {
@@ -453,7 +477,7 @@ class UserGUI extends Application implements SharedResources {
     }
 
     private void showEdit() {
-        EditGUI editGUI = new EditGUI(username);
+        EditGUI editGUI = new EditGUI(username, client);
         try {
             editGUI.start(primaryStage);
         } catch (Exception e) {
@@ -462,7 +486,7 @@ class UserGUI extends Application implements SharedResources {
     }
 
     private void showMessage(String user) {
-        MessageGUI messageGUI = new MessageGUI(this.username, user);
+        MessageGUI messageGUI = new MessageGUI(this.username, user, client);
         try {
             messageGUI.start(primaryStage);
         } catch (Exception e) {
@@ -479,7 +503,7 @@ class UserGUI extends Application implements SharedResources {
             terminalOutput.set("Please select a valid user to add as a friend.");
         } else {
             System.out.println("Calling manager.addFriend with username: " + username + " and friend: " + selectedFriend);
-            String result = manager.addFriend(username, selectedFriend);
+            String result = client.newClientCommand("ADDFRIEND:" + username + ":" + selectedFriend);
             System.out.println("Result from manager.addFriend: " + result);
             terminalOutput.set(result);
         }
@@ -494,8 +518,36 @@ class UserGUI extends Application implements SharedResources {
             terminalOutput.set("Please select a valid user to unfriend.");
         } else {
             System.out.println("Calling manager.unfriend with username: " + username + " and friend: " + selectedFriend);
-            String result = manager.unfriend(username, selectedFriend);
+            String result = client.newClientCommand("UNFRIEND:" + username + ":" + selectedFriend);
             System.out.println("Result from manager.unfriend: " + result);
+            terminalOutput.set(result); // Display the result in the terminal output
+        }
+    }
+
+    private void block(ComboBox<String> dropdownMenu) {
+        String selectedFriend = dropdownMenu.getValue();
+
+        if (selectedFriend == null || selectedFriend.equals("See All Users")) {
+            System.out.println("Invalid selection.");
+            terminalOutput.set("Please select a valid user to block.");
+        } else {
+            System.out.println("Calling manager.block with username: " + username + " and user: " + selectedFriend);
+            String result = client.newClientCommand("BLOCK:" + username + ":" + selectedFriend);
+            System.out.println("Result from manager.block: " + result);
+            terminalOutput.set(result); // Display the result in the terminal output
+        }
+    }
+
+    private void unblock(ComboBox<String> dropdownMenu) {
+        String selectedFriend = dropdownMenu.getValue();
+
+        if (selectedFriend == null || selectedFriend.equals("See All Users")) {
+            System.out.println("Invalid selection.");
+            terminalOutput.set("Please select a valid user to unblock.");
+        } else {
+            System.out.println("Calling manager.unblock with username: " + username + " and user: " + selectedFriend);
+            String result = client.newClientCommand("UNBLOCK:" + username + ":" + selectedFriend);
+            System.out.println("Result from manager.unblock: " + result);
             terminalOutput.set(result); // Display the result in the terminal output
         }
     }
@@ -509,12 +561,15 @@ class UserGUI extends Application implements SharedResources {
 class EditGUI extends Application implements SharedResources {
 
     private Stage primaryStage; // current GUI being displayed
+    private Client client;
+
     private Label terminalOutputLabel = new Label();
     private StringProperty terminalOutput = new SimpleStringProperty("");
     private String user;
 
-    public EditGUI(String user) {
+    public EditGUI(String user, Client client) {
         this.user = user;
+        this.client = client;
     }
 
     @Override
@@ -612,7 +667,7 @@ class EditGUI extends Application implements SharedResources {
     }
 
     private void showUser(String username) {
-        UserGUI userGUI = new UserGUI(primaryStage, username);
+        UserGUI userGUI = new UserGUI(primaryStage, username, client);
         try {
             userGUI.start(primaryStage);
         } catch (Exception e) {
@@ -629,16 +684,18 @@ class EditGUI extends Application implements SharedResources {
 class MessageGUI extends Application implements SharedResources {
 
     private Stage primaryStage;
+    private Client client;
+
     private Label terminalOutputLabel = new Label();
     private StringProperty terminalOutput = new SimpleStringProperty("");
     private String user1;
     private String user2;
-    private MessageManager mm;
 
-    public MessageGUI(String user1, String user2) {
+    public MessageGUI(String user1, String user2, Client client) {
         this.user1 = user1;
         this.user2 = user2;
-        mm = new MessageManager(user1, user2);
+
+        this.client = client;
     }
 
     @Override
@@ -647,9 +704,10 @@ class MessageGUI extends Application implements SharedResources {
         primaryStage.setTitle("Chat with " + user2);
 
         // get user data
-        String user1data = manager.getUser(user1);
+        String user1data = client.newClientCommand("GETUSER:" + user1);
 
         // use a method to get the friends hashmap
+        MessageManager mm = new MessageManager(user1, user2);
         HashMap<String, ArrayList<String>> user1friends = mm.getFriendsHashMap(user1data);
 
         // get the chain of messages with user 2 by searching for the key
@@ -736,7 +794,8 @@ class MessageGUI extends Application implements SharedResources {
         sendButton.setAlignment(Pos.BOTTOM_RIGHT);
         sendButton.setOnAction(e -> {
             // first, send the message on the backend
-            mm.sendMessage(user1, messageField.getText());
+            System.out.println("SENDMESSAGE:" + user1 + ":" + user2 + ":" + messageField.getText());
+            System.out.println(client.newClientCommand("SENDMESSAGE:" + user1 + ":" + user2 + ":" + messageField.getText()));
 
             // create a new label and add it to the chatbox
             Label newMessage = new Label(messageField.getText());
@@ -768,7 +827,7 @@ class MessageGUI extends Application implements SharedResources {
     }
 
     private void showUser() {
-        UserGUI userGUI = new UserGUI(primaryStage, user1);
+        UserGUI userGUI = new UserGUI(primaryStage, user1, client);
         try {
             userGUI.start(primaryStage);
         } catch (Exception e) {
@@ -779,21 +838,24 @@ class MessageGUI extends Application implements SharedResources {
 
 class ViewGUI extends Application implements SharedResources {
     private Stage primaryStage; // current GUI being displayed
+    private Client client;
+
     private Label terminalOutputLabel = new Label();
     private StringProperty terminalOutput = new SimpleStringProperty("");
     private String username;
     private String viewedUser;
 
-    public ViewGUI(Stage primaryStage, String username, String viewedUser) {
+    public ViewGUI(Stage primaryStage, String username, String viewedUser, Client client) {
         this.primaryStage = primaryStage;
         this.username = username;
         this.viewedUser = viewedUser;
+        this.client = client;
     }
 
     @Override
     public void start(Stage primaryStage) {
         // data that is available
-        String userData = manager.getUser(viewedUser);
+        String userData = client.newClientCommand("GETUSER:" + viewedUser);
         /*** Example Output of userData
          * {"id":4,"username":"test2","email":"test@ourdue.edu","bio":"test","friends":{}}
          */
@@ -841,7 +903,7 @@ class ViewGUI extends Application implements SharedResources {
     }
 
     private void showUser() {
-        UserGUI userGUI = new UserGUI(primaryStage, this.username);
+        UserGUI userGUI = new UserGUI(primaryStage, this.username, client);
         try {
             userGUI.start(primaryStage);
         } catch (Exception e) {
