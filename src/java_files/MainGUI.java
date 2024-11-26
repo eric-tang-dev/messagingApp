@@ -509,12 +509,15 @@ class UserGUI extends Application implements SharedResources {
 class EditGUI extends Application implements SharedResources {
 
     private Stage primaryStage; // current GUI being displayed
+    private Client client;
+
     private Label terminalOutputLabel = new Label();
     private StringProperty terminalOutput = new SimpleStringProperty("");
     private String user;
 
-    public EditGUI(String user) {
+    public EditGUI(String user, Client client) {
         this.user = user;
+        this.client = client;
     }
 
     @Override
@@ -637,7 +640,7 @@ class EditGUI extends Application implements SharedResources {
     }
 
     private void showUser(String username) {
-        UserGUI userGUI = new UserGUI(primaryStage, username);
+        UserGUI userGUI = new UserGUI(primaryStage, username, client);
         try {
             userGUI.start(primaryStage);
         } catch (Exception e) {
