@@ -2,6 +2,10 @@ package java_files;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ThreadedServer extends Thread implements SharedResources {
     Socket client;
@@ -398,6 +402,41 @@ public class ThreadedServer extends Thread implements SharedResources {
         // Use the UserManager's addFriend method to update the friend's list
         String serverReturn = manager.addFriend(username, friend);
         return serverReturn;
+    }
+
+    public String checkIfBlocked(String username1, String username2) {
+        // this is just reading from a file so no need to synchronize
+        Map<String, List<String>> blockedMap = new HashMap<>();
+        try (BufferedReader br = new BufferedReader(new FileReader("blockedList.txt"))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                // Formatting the input from file
+                String[] parts = line.split(":");
+                String blocker = parts[0].trim();
+                String blockedList = parts[1].trim();
+                blockedList = blockedList.substring(1, blockedList.length() - 1); // Remove [ and ]
+                List<String> blockedUsers = Arrays.asList(blockedList.split(","));
+                
+                // Creating clean blocked users list
+                List<String> cleanBlockedUsers = new ArrayList<>();
+                for (String user : blockedUsers) {
+                    cleanBlockedUsers.add(user.trim());
+                }
+                // Putting blocker and blocked users into a map
+                blockedMap.put(blocker, cleanBlockedUsers);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "Error reading the file.";
+        }
+
+        // Check if either username blocks the other
+        if ((blockedMap.containsKey(username1) && blockedMap.get(username1).contains(username2)) ||
+            (blockedMap.containsKey(username2) && blockedMap.get(username2).contains(username1))) {
+            return "already blocked";
+        }
+
+        return "not blocked";
     }
 
     public String unfriend(String input) {
