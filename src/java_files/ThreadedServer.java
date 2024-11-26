@@ -1,7 +1,12 @@
 package java_files;
+import javafx.application.Application;
+
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 
 public class ThreadedServer extends Thread implements SharedResources {
     Socket client;
@@ -78,6 +83,12 @@ public class ThreadedServer extends Thread implements SharedResources {
                 // strings in the form of 'ACTION:INPUT' where the input is what they typed, if applicable,
                 // and action corresponds to what they pressed.
                 switch (input.substring(0, input.indexOf(":"))) {
+                    case "POPULATE" -> {
+                        manager.populateHashMap();
+                    }
+                    case "WRITEHASMAP" -> {
+                        manager.writeHashMapToFile();
+                    }
                     case "LOGIN" -> {
                         // Format: LOGIN:USERNAME:PASSWORD
                         serverReturn = login(input, writer);
@@ -210,6 +221,10 @@ public class ThreadedServer extends Thread implements SharedResources {
                             writer.write("FAILED: " + serverReturn);
                             writer.println();
                             writer.flush();
+                        } else if (serverReturn.contains("is already a friend")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
                         } else if (serverReturn.contains("Cannot find User")) {
                             writer.write("FAILED: " + serverReturn);
                             writer.println();
@@ -231,12 +246,15 @@ public class ThreadedServer extends Thread implements SharedResources {
                             writer.println();
                             writer.flush();
                         }
-
                     }
                     case "UNFRIEND" -> {
                         // Format: UNFRIEND:USER:FRIEND
                         serverReturn = unfriend(input);
                         if (serverReturn.contains("Invalid Input")) {
+                            writer.write("FAILED: " + serverReturn);
+                            writer.println();
+                            writer.flush();
+                        } else if (serverReturn.contains("is already unfriended")) {
                             writer.write("FAILED: " + serverReturn);
                             writer.println();
                             writer.flush();
@@ -261,6 +279,11 @@ public class ThreadedServer extends Thread implements SharedResources {
                     case "BLOCK" -> {
                         // Format: BLOCK:BLOCKER:BLOCKED
                         synchronized(manager) {
+                            String[] split = input.split(":");
+                            if (checkIfFriend(split[1], split[2])) {
+                                unfriend(input);
+                                System.out.println("Unfriended " + split[2]);
+                            }
                             serverReturn = blockUser(input);
                         }
                         if (serverReturn.contains("Invalid Input")) {
@@ -322,6 +345,20 @@ public class ThreadedServer extends Thread implements SharedResources {
                     }
                     case "SENDMESSAGE" -> {
                         // Format: SENDMESSAGE:SENDER:RECEIVER:MESSAGE
+                        // Conditions: Both users must have each other friended and cannot be blocked.
+                        String[] split = input.split(":");
+                        if (!(checkIfFriend(split[1], split[2])) || !(checkIfFriend(split[2], split[1]))) {
+                            writer.write("FAILED: Users must be 2-way friends");
+                            writer.println();
+                            writer.flush();
+                            break;
+                        }
+                        if (checkIfBlocked(split[1], split[2]) || checkIfBlocked(split[2], split[1])) {
+                            writer.write("FAILED: One of the two users is blocking the other!");
+                            writer.println();
+                            writer.flush();
+                            break;
+                        }
                         serverReturn = sendMessage(input, writer);
                         if (serverReturn.contains("User") && serverReturn.contains("could not be found")) {
                             writer.write("FAILED: " + serverReturn);
@@ -388,6 +425,12 @@ public class ThreadedServer extends Thread implements SharedResources {
         String username = parts[1];
         String friend = parts[2];
 
+        synchronized (manager) {
+            if (checkIfFriend(username, friend)) {
+                return("User " + friend + " is already a friend");
+            }
+        }
+
         // Check if the friend exists
         synchronized(manager) {
             if (!manager.getIdTracker().containsKey(friend)) {
@@ -413,6 +456,12 @@ public class ThreadedServer extends Thread implements SharedResources {
 
         String username = parts[1];
         String friend = parts[2];
+
+        synchronized (manager) {
+            if (!checkIfFriend(username, friend)) {
+                return ("User " + friend + " is already unfriended");
+            }
+        }
 
         // Check if the friend exists
         synchronized(manager) {
@@ -590,5 +639,59 @@ public class ThreadedServer extends Thread implements SharedResources {
         // set password and friend to null when calling editUser
         String serverReturn = manager.editUser(username, null, email, bio, null);
         return serverReturn;
+    }
+
+    // Note: Written by Aneesh
+    public boolean checkIfFriend (String username, String friend) {
+
+        synchronized(manager) {
+            manager.populateHashMap();
+
+            String userData = manager.getUser(username);
+            if (userData == null || userData.isEmpty()) {
+                return false; // User doesn't exist or data is invalid
+            }
+            // Extract info from friends list
+            HashMap<String, ArrayList<String>> friendsMap = manager.getFriendsHashMap(userData);
+
+            // Check if the friend exists in the user's friends list
+            return friendsMap.containsKey(friend);
+        }
+    }
+
+    // Note: Written by Triet
+    public boolean checkIfBlocked(String username1, String username2) {
+        // this is just reading from a file so no need to synchronize
+        HashMap<String, List<String>> blockedMap = new HashMap<>();
+        try (BufferedReader br = new BufferedReader(new FileReader("blockedList.txt"))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                // Formatting the input from file
+                String[] parts = line.split(":");
+                String blocker = parts[0].trim();
+                String blockedList = parts[1].trim();
+                blockedList = blockedList.substring(1, blockedList.length() - 1); // Remove [ and ]
+                List<String> blockedUsers = Arrays.asList(blockedList.split(","));
+
+                // Creating clean blocked users list
+                List<String> cleanBlockedUsers = new ArrayList<>();
+                for (String user : blockedUsers) {
+                    cleanBlockedUsers.add(user.trim());
+                }
+                // Putting blocker and blocked users into a map
+                blockedMap.put(blocker, cleanBlockedUsers);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        // Check if either username blocks the other
+        if ((blockedMap.containsKey(username1) && blockedMap.get(username1).contains(username2)) ||
+                (blockedMap.containsKey(username2) && blockedMap.get(username2).contains(username1))) {
+            return true;
+        }
+
+        return false;
     }
 }
