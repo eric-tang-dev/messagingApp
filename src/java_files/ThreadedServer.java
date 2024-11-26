@@ -52,7 +52,7 @@ public class ThreadedServer extends Thread implements SharedResources {
     // Whatever we want to display once connection is made will be here,
     // like GUI and listening for inputs like login or messaging people
     public void run() {
-
+        System.out.println("Line 55");
         Socket clientCopy = getClient();
         String input = "";
         String serverReturn;
@@ -67,13 +67,14 @@ public class ThreadedServer extends Thread implements SharedResources {
             while (!logout) {
                 try {
                     input = reader.readLine();
+                    System.out.println("Input read: " + input);
                 } catch (IOException e) {
                     try {
                         sleep(1000);
                     } catch (InterruptedException ex) {
                         throw new RuntimeException(ex);
                     }
-                    // System.out.println("ReLooping");
+                     System.out.println("ReLooping");
                     continue;
                 }
                 if (input == null) {
@@ -85,9 +86,15 @@ public class ThreadedServer extends Thread implements SharedResources {
                 switch (input.substring(0, input.indexOf(":"))) {
                     case "POPULATE" -> {
                         manager.populateHashMap();
+                        writer.write("Populated HashMap");
+                        writer.println();
+                        writer.flush();
                     }
-                    case "WRITEHASMAP" -> {
+                    case "WRITEHASHMAP" -> {
                         manager.writeHashMapToFile();
+                        writer.write("HashMap Written to File");
+                        writer.println();
+                        writer.flush();
                     }
                     case "LOGIN" -> {
                         // Format: LOGIN:USERNAME:PASSWORD
