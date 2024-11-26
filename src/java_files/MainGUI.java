@@ -32,9 +32,9 @@ public class MainGUI extends Application implements SharedResources {
 
     @Override
     public void start(Stage primaryStage) {
+        manager.populateHashMap();
         // this populates the hashmap that we use to save a local copy of a part of the database
-        manager.populateHashMap(); // do not remove this line of code from the top
-        boolean huh = manager.writeHashMapToFile(); // do not remove this line of code from the top
+        client.newClientCommand("WRITEHASHMAP:");
 
         this.primaryStage = primaryStage;
         primaryStage.setTitle("Main Screen");
@@ -365,6 +365,8 @@ class UserGUI extends Application implements SharedResources {
         Button viewUserButton = new Button("View User's Profile");
         Button blockButton = new Button("Block User");
         Button unblockButton = new Button("Unblock User");
+        Button viewFriendButton = new Button("View Friends");
+        Button viewBlockedButton = new Button("View Blocked Users");
 
         // button actions here
         addFriendButton.setOnAction(e -> addFriend(username, dropdownMenu));
@@ -374,6 +376,8 @@ class UserGUI extends Application implements SharedResources {
         viewUserButton.setOnAction(e -> showViewUser());
         blockButton.setOnAction(e -> block(dropdownMenu));
         unblockButton.setOnAction(e -> unblock(dropdownMenu));
+        viewFriendButton.setOnAction(e -> viewFriend());
+        viewBlockedButton.setOnAction(e -> viewBlockList());
         terminalOutputLabel.textProperty().bind(terminalOutput);
 
         // add profile info
@@ -387,6 +391,8 @@ class UserGUI extends Application implements SharedResources {
         userGrid.add(blockButton,0,7);
         userGrid.add(unblockButton,0,8);
         userGrid.add(editDataButton, 1, 3);
+        userGrid.add(viewFriendButton,1,4);
+        userGrid.add(viewBlockedButton,1,5);
 
         // RIGHT SIDE OF SCREEN FOR MESSAGES
         HashMap<String, ArrayList<String>> friendsMap = manager.getFriendsHashMap(userData);
@@ -396,7 +402,6 @@ class UserGUI extends Application implements SharedResources {
         grid2.setPadding(new Insets(10));
         grid2.setHgap(10);
         grid2.setVgap(10);
-
         int messageRow = 0;
 
         for (Map.Entry<String, ArrayList<String>> entry : friendsMap.entrySet()) {
@@ -552,6 +557,52 @@ class UserGUI extends Application implements SharedResources {
         }
     }
 
+    private void viewFriend() {
+        String userData = manager.getUser(username);
+        HashMap<String, ArrayList<String>> friendsMap = manager.getFriendsHashMap(userData);
+        if (friendsMap.isEmpty()) {
+            terminalOutput.set("No friends found.");
+        } else {
+            StringBuilder friendList = new StringBuilder("Friends List:\n");
+            for (Map.Entry<String, ArrayList<String>> entry : friendsMap.entrySet()) {
+                friendList.append(entry.getKey()).append(": ");
+                ArrayList<String> messages = entry.getValue();
+                if (messages.isEmpty()) {
+                    friendList.append("No messages");
+                } else {
+                    friendList.append(messages.size()).append(" message(s)");
+                }
+                friendList.append("\n");
+            }
+            terminalOutput.set(friendList.toString());
+        }
+    }
+
+    private void viewBlockList() {
+        File file = new File("blockedList.txt");
+
+        if (!file.exists()) {
+            terminalOutput.set("Blocked list file does not exist.");
+            return;
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // Check if the line starts with the specified username
+                if (line.startsWith(username + ":")) {
+                    terminalOutput.set(line);
+                    return; // Stop after finding the user
+                }
+            }
+            // If the user is not found
+            terminalOutput.set("User '" + username + "' not found in the blocked list.");
+        } catch (IOException e) {
+            terminalOutput.set("Error reading blocked list file.");
+            e.printStackTrace();
+        }
+    }
+
     // update the terminal (what the user sees in the GUI)
     private void printTerminalOutput(String newValue) {
         terminalOutput.set(newValue);
@@ -576,18 +627,13 @@ class EditGUI extends Application implements SharedResources {
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
         primaryStage.setTitle("Edit Profile");
-
+        String username = user;
         // create grid
         GridPane editGrid = new GridPane();
         editGrid.setPadding(new Insets(10));
         editGrid.setHgap(10);
         editGrid.setVgap(10);
         editGrid.setAlignment(Pos.CENTER);
-
-        // edit username
-        editGrid.add(new Label("Edit Username:"), 0, 0);
-        TextField username = new TextField();
-        editGrid.add(username, 1, 0);
 
         // edit email
         editGrid.add(new Label("Edit Email:"), 0, 2);
@@ -616,33 +662,28 @@ class EditGUI extends Application implements SharedResources {
         backButton.setOnAction(e -> showUser(user));
         saveButton.setOnAction(e -> {
             // get text fom user and trim
-            String newUsername = username.getText().trim();
             String newEmail = email.getText().trim();
             String newBio = bio.getText().trim();
-
             // validation of fields
             while (true) {
-                if (newUsername.isEmpty()) {
-                    terminalOutput.set("Username cannot be empty. Please provide a valid username.");
-                    break;
-                } else if (newEmail.isEmpty()) {
+                if (newEmail.isEmpty()) {
                     terminalOutput.set("Email cannot be empty. Please provide a valid email address.");
                     break; // Exit the loop since validation failed
                 } else if (newBio.isEmpty()) {
                     terminalOutput.set("Bio cannot be empty. Please provide some information in your bio.");
                     break;
                 } else {
-                    username.setText(newUsername);
+                    String editData = "EDIT:" + username + ":" + null + ":" + newEmail + ":" + newBio;
+                    terminalOutput.set(client.newClientCommand(editData));
                     email.setText(newEmail);
                     bio.setText(newBio);
                     terminalOutput.set("Profile updated successfully!");
 
                     // print to the console for debugging
                     // here, i will send the PUT/PATCH request
-                    System.out.println("Updated Username: " + newUsername);
                     System.out.println("Updated Email: " + newEmail);
                     System.out.println("Updated Bio: " + newBio);
-                    showUser(newUsername);
+                    showUser(username);
 
                     break;
                 }
@@ -652,8 +693,8 @@ class EditGUI extends Application implements SharedResources {
         terminalOutputLabel.textProperty().bind(terminalOutput);
 
         // Add buttons to the grid
-        editGrid.add(saveButton, 0, 4);
-        editGrid.add(backButton, 1, 4);
+        editGrid.add(saveButton, 0, 5);
+        editGrid.add(backButton, 1, 5);
 
         // More setup - using a VBox as the root container
         VBox root = new VBox(editGrid);
