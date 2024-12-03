@@ -649,7 +649,7 @@ public class ThreadedServer extends Thread implements SharedResources {
     }
 
     // Note: Written by Aneesh
-    public boolean checkIfFriend (String username, String friend) {
+    public static boolean checkIfFriend (String username, String friend) {
 
         synchronized(manager) {
             manager.populateHashMap();
@@ -667,7 +667,7 @@ public class ThreadedServer extends Thread implements SharedResources {
     }
 
     // Note: Written by Triet
-    public boolean checkIfBlocked(String username1, String username2) {
+    public static boolean checkIfBlocked(String username1, String username2) {
         // this is just reading from a file so no need to synchronize
         HashMap<String, List<String>> blockedMap = new HashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader("blockedList.txt"))) {
