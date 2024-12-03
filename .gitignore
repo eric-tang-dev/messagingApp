@@ -20,6 +20,7 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 localDatabase.txt
+blockedList.txt
 
 # Eclipse
 .apt_generated
