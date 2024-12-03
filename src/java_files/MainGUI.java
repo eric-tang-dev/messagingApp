@@ -17,9 +17,13 @@ import javafx.scene.layout.Priority; // new import
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import javax.swing.*;
 import java.lang.reflect.Array;
 import java.util.*;
 import java.io.*;
+
+import static java_files.ThreadedServer.checkIfBlocked;
+import static java_files.ThreadedServer.checkIfFriend;
 
 public class MainGUI extends Application implements SharedResources {
 
@@ -506,12 +510,16 @@ class UserGUI extends Application implements SharedResources {
         if (selectedFriend == null || selectedFriend.equals("See All Users")) {
             System.out.println("Invalid friend selection.");
             terminalOutput.set("Please select a valid user to add as a friend.");
+        } else if (checkIfBlocked(this.username, selectedFriend)) {
+            JOptionPane.showMessageDialog(null, ("Error: " + selectedFriend + " is blocked. Unblock them first"), "Messaging App", JOptionPane.INFORMATION_MESSAGE);
+            return;
         } else {
             System.out.println("Calling manager.addFriend with username: " + username + " and friend: " + selectedFriend);
             String result = client.newClientCommand("ADDFRIEND:" + username + ":" + selectedFriend);
             System.out.println("Result from manager.addFriend: " + result);
             terminalOutput.set(result);
         }
+        refreshUserGUI();
     }
 
     private void unfriend(String username, ComboBox<String> dropdownMenu) {
@@ -527,6 +535,7 @@ class UserGUI extends Application implements SharedResources {
             System.out.println("Result from manager.unfriend: " + result);
             terminalOutput.set(result); // Display the result in the terminal output
         }
+        refreshUserGUI();
     }
 
     private void block(ComboBox<String> dropdownMenu) {
@@ -541,6 +550,7 @@ class UserGUI extends Application implements SharedResources {
             System.out.println("Result from manager.block: " + result);
             terminalOutput.set(result); // Display the result in the terminal output
         }
+        refreshUserGUI();
     }
 
     private void unblock(ComboBox<String> dropdownMenu) {
@@ -555,6 +565,7 @@ class UserGUI extends Application implements SharedResources {
             System.out.println("Result from manager.unblock: " + result);
             terminalOutput.set(result); // Display the result in the terminal output
         }
+        refreshUserGUI();
     }
 
     private void viewFriend() {
@@ -601,6 +612,11 @@ class UserGUI extends Application implements SharedResources {
             terminalOutput.set("Error reading blocked list file.");
             e.printStackTrace();
         }
+    }
+
+    private void refreshUserGUI() {
+        // To help with refreshing instantly
+        start(primaryStage);
     }
 
     // update the terminal (what the user sees in the GUI)
@@ -834,6 +850,13 @@ class MessageGUI extends Application implements SharedResources {
         Button sendButton = new Button("Send");
         sendButton.setAlignment(Pos.BOTTOM_RIGHT);
         sendButton.setOnAction(e -> {
+            if (checkIfBlocked(user2, user1)) {
+                JOptionPane.showMessageDialog(null, "Error: This user has you blocked!", "Messaging App", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            } else if (!(checkIfFriend(user1, user2) && checkIfFriend(user2, user1))) {
+                JOptionPane.showMessageDialog(null, "Error: Cannot message user unless you are 2-way friends", "Messaging App", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             // first, send the message on the backend
             System.out.println("SENDMESSAGE:" + user1 + ":" + user2 + ":" + messageField.getText());
             System.out.println(client.newClientCommand("SENDMESSAGE:" + user1 + ":" + user2 + ":" + messageField.getText()));
