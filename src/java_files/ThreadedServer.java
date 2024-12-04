@@ -74,7 +74,7 @@ public class ThreadedServer extends Thread implements SharedResources {
                     } catch (InterruptedException ex) {
                         throw new RuntimeException(ex);
                     }
-                     System.out.println("ReLooping");
+                    System.out.println("ReLooping");
                     continue;
                 }
                 if (input == null) {
@@ -466,7 +466,7 @@ public class ThreadedServer extends Thread implements SharedResources {
 
         synchronized (manager) {
             if (!checkIfFriend(username, friend)) {
-                return ("User " + friend + " is already unfriended");
+                return ("User " + friend + " is not a friend");
             }
         }
 
@@ -498,10 +498,12 @@ public class ThreadedServer extends Thread implements SharedResources {
         String message = parts[3];
 
         MessageManager messageManager = new MessageManager(sender, receiver);
+        System.out.println("SENDER: " + sender);
+        System.out.println("RECEIVER: " + receiver);
         messageManager.populateHashMap();
         ArrayList<String> a = messageManager.idTrackerToString();
 
-        String serverReturn = messageManager.sendMessage(receiver, message);
+        String serverReturn = messageManager.sendMessage(sender, message);
         return serverReturn;
     }
 
