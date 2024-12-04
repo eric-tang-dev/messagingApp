@@ -1,20 +1,14 @@
 package java_files;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox; // new import
-import javafx.scene.layout.Priority; // new import
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
 import javax.swing.*;
@@ -317,6 +311,7 @@ class UserGUI extends Application implements SharedResources {
     private StringProperty terminalOutput = new SimpleStringProperty("");
     private String username;
     private ComboBox<String> dropdownMenu;
+    private BorderPane mainLayout;
 
     public UserGUI(Stage primaryStage, String username, Client client) {
         this.primaryStage = primaryStage;
@@ -326,6 +321,10 @@ class UserGUI extends Application implements SharedResources {
 
     @Override
     public void start(Stage primaryStage) {
+        // Set the primary stage
+        this.primaryStage = primaryStage;
+        primaryStage.setTitle(username + "'s Social Media Profile");
+
         // data that is available
         String userData = client.newClientCommand("GETUSER:" + username);
         /*** Example Output of userData
@@ -336,26 +335,134 @@ class UserGUI extends Application implements SharedResources {
         String email = userData.split("\"email\":\"")[1].split("\"")[0];
         String bio = userData.split("\"bio\":\"")[1].split("\"")[0];
 
-        // initialize new Stage here
-        this.primaryStage = primaryStage;
-        primaryStage.setTitle(username + "'s Profile");
+        // initialize the main layout
+        this.mainLayout = new BorderPane();
 
-        // Create a single grid for both profile and messages
-        GridPane userGrid = new GridPane();
-        userGrid.setPadding(new Insets(10));
-        userGrid.setHgap(20);
-        userGrid.setVgap(10);
+        // nav bar on the left side
+        VBox sideNavBar = new VBox();
+        sideNavBar.setPadding(new Insets(10));
+        sideNavBar.setSpacing(20);
+        sideNavBar.setStyle("-fx-background-color: #333; -fx-min-width: 150px;");
 
-        // Profile info section (left side)
+        Button profileButton = new Button("Profile");
+        Button messagesButton = new Button("Messages");
+        Button otherButton = new Button("Actions");
+
+        profileButton.setMaxWidth(Double.MAX_VALUE);
+        messagesButton.setMaxWidth(Double.MAX_VALUE);
+        otherButton.setMaxWidth(Double.MAX_VALUE);
+
+        sideNavBar.getChildren().addAll(profileButton, messagesButton, otherButton);
+
+        // panes
+        StackPane profilePane = createProfilePane(username, email, bio);
+        StackPane otherPane = createActionPane();
+
+        // terminal output
+        HBox terminalOutputPane = new HBox();
+        terminalOutputPane.setPadding(new Insets(10));
+        terminalOutputPane.setStyle("-fx-background-color: #f0f0f0; -fx-border-color: #ccc;");
+        Label terminalLabel = new Label("Terminal Output: ");
+        terminalOutputLabel.textProperty().bind(terminalOutput);
+        terminalOutputPane.getChildren().addAll(terminalLabel, terminalOutputLabel);
+
+        // put logout button on the very bottom
+        Button logOutButtonBottom = new Button("Log Out");
+        logOutButtonBottom.setOnAction(e -> showLogin());
+        VBox bottomPane = new VBox(terminalOutputPane, logOutButtonBottom);
+        bottomPane.setSpacing(10);
+        bottomPane.setPadding(new Insets(10));
+
+        // place the panes on the screen where they belong
+        BorderPane.setAlignment(sideNavBar, Pos.CENTER_LEFT);
+        mainLayout.setLeft(sideNavBar);
+        mainLayout.setBottom(bottomPane);
+        mainLayout.setCenter(profilePane);
+
+        // buttons on the side to switch views
+        profileButton.setOnAction(e -> mainLayout.setCenter(profilePane));
+        messagesButton.setOnAction(e -> {
+            StackPane messagesPane = createMessagesPane();
+            mainLayout.setCenter(messagesPane);
+        });
+        otherButton.setOnAction(e -> mainLayout.setCenter(otherPane));
+
+        // show stage
+        Scene scene = new Scene(mainLayout, 800, 600);
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private StackPane createProfilePane(String username, String email, String bio) {
+        // profile pane with user information
+        StackPane profilePane = new StackPane();
+        VBox profileBox = new VBox();
+        profileBox.setPadding(new Insets(20));
+        profileBox.setSpacing(10);
+
         Label usernameLabel = new Label(username);
         usernameLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
-        Label bioLabel = new Label(bio);
-        bioLabel.setStyle("-fx-font-size: 14px;");
         Label emailLabel = new Label(email);
-        emailLabel.setStyle("-fx-font-size: 14px;");
+        Label bioLabel = new Label(bio);
+
+        Button editDataButton = new Button("Edit Data");
+        Button viewFriendButton = new Button("View Friends");
+        Button viewBlockedButton = new Button("View Blocked Users");
+
+        editDataButton.setOnAction(e -> showEdit());
+        viewFriendButton.setOnAction(e -> viewFriend());
+        viewBlockedButton.setOnAction(e -> viewBlockList());
+
+        profileBox.getChildren().addAll(usernameLabel, emailLabel, bioLabel, editDataButton, viewFriendButton, viewBlockedButton);
+        profilePane.getChildren().add(profileBox);
+
+        return profilePane;
+    }
+
+    private StackPane createMessagesPane() {
+        // messages pane
+        System.out.println("run");
+        StackPane messagesPane = new StackPane();
+        VBox messagesBox = new VBox();
+        messagesBox.setPadding(new Insets(20));
+        messagesBox.setSpacing(10);
+
+        HashMap<String, ArrayList<String>> friendsMap = manager.getFriendsHashMap(client.newClientCommand("GETUSER:" + username));
+        for (Map.Entry<String, ArrayList<String>> entry : friendsMap.entrySet()) {
+            String otherUser = entry.getKey();
+            if (username.equals(otherUser)) continue;
+
+            VBox messageBox = new VBox();
+            messageBox.setPadding(new Insets(10));
+            messageBox.setSpacing(5);
+            messageBox.setStyle("-fx-background-color: #DCDCDC; -fx-border-radius: 10; -fx-background-radius: 10;");
+            messageBox.setOnMouseClicked(event -> showMessage(otherUser));
+
+            Label userLabel = new Label(otherUser);
+            userLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
+
+            ArrayList<String> messages = entry.getValue();
+            Label latestMessage = new Label(messages.isEmpty() ? "No messages" : messages.get(messages.size() - 1));
+            latestMessage.setStyle("-fx-font-size: 14px; -fx-text-fill: #555;");
+
+
+            messageBox.getChildren().addAll(userLabel, latestMessage);
+            messagesBox.getChildren().add(messageBox);
+        }
+
+        messagesPane.getChildren().add(messagesBox);
+        return messagesPane;
+    }
+
+    private StackPane createActionPane() {
+        // pane with all actions
+        StackPane otherPane = new StackPane();
+        VBox otherBox = new VBox();
+        otherBox.setPadding(new Insets(20));
+        otherBox.setSpacing(10);
 
         dropdownMenu = new ComboBox<>();
-        for (String key: manager.getIdTracker().keySet()) {
+        for (String key : manager.getIdTracker().keySet()) {
             if (key.equals(username)) continue;
             dropdownMenu.getItems().add(key);
         }
@@ -364,102 +471,20 @@ class UserGUI extends Application implements SharedResources {
 
         Button addFriendButton = new Button("Add Friend");
         Button unfriendButton = new Button("Remove Friend");
-        Button editDataButton = new Button("Edit Data");
-        Button logOutButton = new Button("Log Out");
         Button viewUserButton = new Button("View User's Profile");
         Button blockButton = new Button("Block User");
         Button unblockButton = new Button("Unblock User");
-        Button viewFriendButton = new Button("View Friends");
-        Button viewBlockedButton = new Button("View Blocked Users");
 
-        // button actions here
         addFriendButton.setOnAction(e -> addFriend(username, dropdownMenu));
         unfriendButton.setOnAction(e -> unfriend(username, dropdownMenu));
-        editDataButton.setOnAction(e -> showEdit());
-        logOutButton.setOnAction(e -> showLogin());
         viewUserButton.setOnAction(e -> showViewUser());
         blockButton.setOnAction(e -> block(dropdownMenu));
         unblockButton.setOnAction(e -> unblock(dropdownMenu));
-        viewFriendButton.setOnAction(e -> viewFriend());
-        viewBlockedButton.setOnAction(e -> viewBlockList());
-        terminalOutputLabel.textProperty().bind(terminalOutput);
 
-        // add profile info
-        userGrid.add(usernameLabel, 0, 0);
-        userGrid.add(bioLabel, 0, 1);
-        userGrid.add(emailLabel, 0, 2);
-        userGrid.add(dropdownMenu, 0, 3);
-        userGrid.add(viewUserButton, 0, 4);
-        userGrid.add(addFriendButton, 0, 5);
-        userGrid.add(unfriendButton,0,6);
-        userGrid.add(blockButton,0,7);
-        userGrid.add(unblockButton,0,8);
-        userGrid.add(editDataButton, 1, 3);
-        userGrid.add(viewFriendButton,1,4);
-        userGrid.add(viewBlockedButton,1,5);
+        otherBox.getChildren().addAll(dropdownMenu, viewUserButton, addFriendButton, unfriendButton, blockButton, unblockButton);
+        otherPane.getChildren().add(otherBox);
 
-        // RIGHT SIDE OF SCREEN FOR MESSAGES
-        HashMap<String, ArrayList<String>> friendsMap = manager.getFriendsHashMap(userData);
-
-        // new grid
-        GridPane grid2 = new GridPane();
-        grid2.setPadding(new Insets(10));
-        grid2.setHgap(10);
-        grid2.setVgap(10);
-        int messageRow = 0;
-
-        for (Map.Entry<String, ArrayList<String>> entry : friendsMap.entrySet()) {
-            String otherUser = entry.getKey();
-            if (username.equals(otherUser)) continue;
-
-            VBox messageBox = new VBox();
-            messageBox.setPadding(new Insets(15));
-            messageBox.setSpacing(20);
-            messageBox.setStyle("-fx-background-color: #f0f0f0; -fx-border-radius: 10; -fx-background-radius: 10; -fx-min-width: 300px;");
-
-            Label userLabel = new Label(otherUser);
-            userLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
-
-            // display the last message sent, or none
-            ArrayList<String> messages = entry.getValue();
-            Label latestMessage;
-            if (messages.isEmpty()) {
-                continue;
-            } else {
-                String[] messageData = messages.getLast().split("-");
-                latestMessage = new Label(messageData[0]);
-            }
-            latestMessage.setStyle("-fx-font-size: 14px; -fx-text-fill: #555555;");
-
-            // to click into MessageGUI
-            messageBox.setOnMouseClicked(event -> showMessage(otherUser));
-
-            messageBox.getChildren().addAll(userLabel, latestMessage);
-            grid2.add(messageBox, 0, messageRow);
-            messageRow++;
-            if (messageRow >= 6) { // don't display more than 6 at once
-                break;
-            }
-        }
-
-        messageRow += 1; // numRows between message and logout
-
-        grid2.add(logOutButton, 0, messageRow + 1);
-        grid2.add(new Label("Terminal Output:"), 0, messageRow + 2);
-        grid2.add(terminalOutputLabel, 1, messageRow + 2);
-
-        // put the grid in a vbox
-        VBox root = new VBox();
-        root.setPadding(new Insets(20));
-
-        userGrid.prefHeightProperty().bind(root.heightProperty().multiply(0.35));
-        grid2.prefHeightProperty().bind(root.heightProperty().multiply(0.65));
-        root.getChildren().addAll(userGrid, grid2);
-
-        // set the Stage
-        Scene scene = new Scene(root, 550, 1000);
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        return otherPane;
     }
 
     private void showViewUser() {
@@ -511,7 +536,13 @@ class UserGUI extends Application implements SharedResources {
             System.out.println("Invalid friend selection.");
             terminalOutput.set("Please select a valid user to add as a friend.");
         } else if (checkIfBlocked(this.username, selectedFriend)) {
-            JOptionPane.showMessageDialog(null, ("Error: " + selectedFriend + " is blocked. Unblock them first"), "Messaging App", JOptionPane.INFORMATION_MESSAGE);
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Messaging App");
+                alert.setHeaderText(null);
+                alert.setContentText("Error: " + selectedFriend + " is blocked. Unblock them first.");
+                alert.showAndWait();
+            });
             return;
         } else {
             System.out.println("Calling manager.addFriend with username: " + username + " and friend: " + selectedFriend);
@@ -523,7 +554,7 @@ class UserGUI extends Application implements SharedResources {
     }
 
     private void unfriend(String username, ComboBox<String> dropdownMenu) {
-        String selectedFriend = dropdownMenu.getValue(); // Get the selected user
+        String selectedFriend = dropdownMenu.getValue();
         System.out.println("Unfriend button clicked. Selected friend: " + selectedFriend);
 
         if (selectedFriend == null || selectedFriend.equals("See All Users")) {
@@ -550,7 +581,7 @@ class UserGUI extends Application implements SharedResources {
             System.out.println("Result from manager.block: " + result);
             terminalOutput.set(result); // Display the result in the terminal output
         }
-        refreshUserGUI();
+        refreshUserGUI("action");
     }
 
     private void unblock(ComboBox<String> dropdownMenu) {
@@ -565,7 +596,7 @@ class UserGUI extends Application implements SharedResources {
             System.out.println("Result from manager.unblock: " + result);
             terminalOutput.set(result); // Display the result in the terminal output
         }
-        refreshUserGUI();
+        refreshUserGUI("action");
     }
 
     private void viewFriend() {
@@ -576,13 +607,7 @@ class UserGUI extends Application implements SharedResources {
         } else {
             StringBuilder friendList = new StringBuilder("Friends List:\n");
             for (Map.Entry<String, ArrayList<String>> entry : friendsMap.entrySet()) {
-                friendList.append(entry.getKey()).append(": ");
-                ArrayList<String> messages = entry.getValue();
-                if (messages.isEmpty()) {
-                    friendList.append("No messages");
-                } else {
-                    friendList.append(messages.size()).append(" message(s)");
-                }
+                friendList.append(entry.getKey());
                 friendList.append("\n");
             }
             terminalOutput.set(friendList.toString());
@@ -602,7 +627,13 @@ class UserGUI extends Application implements SharedResources {
             while ((line = reader.readLine()) != null) {
                 // Check if the line starts with the specified username
                 if (line.startsWith(username + ":")) {
-                    terminalOutput.set(line);
+                    int startOfList = line.indexOf("[");
+                    line = "Blocked List:\n" + line.substring(startOfList + 1, line.length() - 1);
+                    if (line.length() == 2) {
+                        terminalOutput.set("No Users Blocked.");
+                    } else {
+                        terminalOutput.set(line);
+                    }
                     return; // Stop after finding the user
                 }
             }
@@ -619,11 +650,30 @@ class UserGUI extends Application implements SharedResources {
         start(primaryStage);
     }
 
+    private void refreshUserGUI(String pane) {
+        switch (pane.toLowerCase()) {
+            case "messages":
+                mainLayout.setCenter(createMessagesPane());
+                break;
+            case "action":
+                mainLayout.setCenter(createActionPane());
+                break;
+            default:
+                mainLayout.setCenter(createProfilePane(username,
+                        client.newClientCommand("GETUSER:" + username).split("\"email\":")[1].split("\"")[0],
+                        client.newClientCommand("GETUSER:" + username).split("\"bio\":")[1].split("\"")[0]));
+                break;
+        }
+    }
+
+
     // update the terminal (what the user sees in the GUI)
     private void printTerminalOutput(String newValue) {
         terminalOutput.set(newValue);
     }
 }
+
+
 
 class EditGUI extends Application implements SharedResources {
 
@@ -851,12 +901,25 @@ class MessageGUI extends Application implements SharedResources {
         sendButton.setAlignment(Pos.BOTTOM_RIGHT);
         sendButton.setOnAction(e -> {
             if (checkIfBlocked(user2, user1)) {
-                JOptionPane.showMessageDialog(null, "Error: This user has you blocked!", "Messaging App", JOptionPane.INFORMATION_MESSAGE);
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Messaging App");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Error: This user has you blocked!");
+                    alert.showAndWait();
+                });
                 return;
             } else if (!(checkIfFriend(user1, user2) && checkIfFriend(user2, user1))) {
-                JOptionPane.showMessageDialog(null, "Error: Cannot message user unless you are 2-way friends", "Messaging App", JOptionPane.ERROR_MESSAGE);
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Messaging App");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Error: Cannot message user unless you are 2-way friends");
+                    alert.showAndWait();
+                });
                 return;
             }
+
             // first, send the message on the backend
             System.out.println("SENDMESSAGE:" + user1 + ":" + user2 + ":" + messageField.getText());
             System.out.println(client.newClientCommand("SENDMESSAGE:" + user1 + ":" + user2 + ":" + messageField.getText()));
