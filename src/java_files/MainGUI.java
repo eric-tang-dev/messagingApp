@@ -442,7 +442,8 @@ class UserGUI extends Application implements SharedResources {
             userLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
 
             ArrayList<String> messages = entry.getValue();
-            Label latestMessage = new Label(messages.isEmpty() ? "No messages" : messages.get(messages.size() - 1));
+            String[] data = messages.get(messages.size() - 1).split("-");
+            Label latestMessage = new Label(messages.isEmpty() ? "No messages" : data[0]);
             latestMessage.setStyle("-fx-font-size: 14px; -fx-text-fill: #555;");
 
 
@@ -672,8 +673,6 @@ class UserGUI extends Application implements SharedResources {
         terminalOutput.set(newValue);
     }
 }
-
-
 
 class EditGUI extends Application implements SharedResources {
 
