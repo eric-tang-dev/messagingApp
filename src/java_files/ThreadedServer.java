@@ -261,7 +261,7 @@ public class ThreadedServer extends Thread implements SharedResources {
                             writer.write("FAILED: " + serverReturn);
                             writer.println();
                             writer.flush();
-                        } else if (serverReturn.contains("is already unfriended")) {
+                        } else if (serverReturn.contains("is not a friend")) {
                             writer.write("FAILED: " + serverReturn);
                             writer.println();
                             writer.flush();
@@ -278,7 +278,7 @@ public class ThreadedServer extends Thread implements SharedResources {
                             writer.println();
                             writer.flush();
                         } else {
-                            writer.write("FAILED: An exception occurred while unfriending user");
+                            writer.write("FAILED: An exception occurred while unfriending user" + serverReturn);
                             writer.println();
                             writer.flush();
                         }
