@@ -61,9 +61,10 @@ public class MainGUI extends Application implements SharedResources {
         root.setPadding(new Insets(20));
 
         // show the GUI
-        Scene scene = new Scene(root, 1000, 1000);
+        Scene scene = new Scene(root, 800, 600);
         primaryStage.setScene(scene);
         primaryStage.show();
+        primaryStage.centerOnScreen();
     }
 
     private void showCreateUser() {
@@ -161,9 +162,10 @@ class CreateUserGUI extends Application implements SharedResources {
         root.setAlignment(Pos.CENTER);
         root.setPadding(new Insets(20));
 
-        Scene scene = new Scene(root, 1000, 1000);
+        Scene scene = new Scene(root, 800, 600);;
         primaryStage.setScene(scene);
         primaryStage.show();
+        primaryStage.centerOnScreen();
     }
 
     // Method to handle POST with all inputs
@@ -260,9 +262,10 @@ class LoginGUI extends Application implements SharedResources{
         root.setAlignment(Pos.CENTER);
         root.setPadding(new Insets(20));
 
-        Scene scene = new Scene(root, 1000, 1000);
+        Scene scene = new Scene(root, 800, 600);
         primaryStage.setScene(scene);
         primaryStage.show();
+        primaryStage.centerOnScreen();
     }
 
     private void handleSubmit(String username, String password) {
@@ -391,6 +394,7 @@ class UserGUI extends Application implements SharedResources {
         Scene scene = new Scene(mainLayout, 800, 600);
         primaryStage.setScene(scene);
         primaryStage.show();
+        primaryStage.centerOnScreen();
     }
 
     private StackPane createProfilePane(String username, String email, String bio) {
@@ -582,7 +586,7 @@ class UserGUI extends Application implements SharedResources {
             System.out.println("Result from manager.block: " + result);
             terminalOutput.set(result); // Display the result in the terminal output
         }
-        refreshUserGUI("action");
+        refreshUserGUI();
     }
 
     private void unblock(ComboBox<String> dropdownMenu) {
@@ -597,7 +601,7 @@ class UserGUI extends Application implements SharedResources {
             System.out.println("Result from manager.unblock: " + result);
             terminalOutput.set(result); // Display the result in the terminal output
         }
-        refreshUserGUI("action");
+        refreshUserGUI();
     }
 
     private void viewFriend() {
@@ -732,11 +736,11 @@ class EditGUI extends Application implements SharedResources {
             // validation of fields
             while (true) {
                 if (newEmail.isEmpty()) {
-                    terminalOutput.set("Email cannot be empty. Please provide a valid email address.");
-                    break; // Exit the loop since validation failed
+                    String userData = client.newClientCommand("GETUSER:" + username);
+                    newEmail = userData.split("\"email\":\"")[1].split("\"")[0];
                 } else if (newBio.isEmpty()) {
-                    terminalOutput.set("Bio cannot be empty. Please provide some information in your bio.");
-                    break;
+                    String userData = client.newClientCommand("GETUSER:" + username);
+                    newBio = userData.split("\"bio\":\"")[1].split("\"")[0];
                 } else {
                     String editData = "EDIT:" + username + ":" + null + ":" + newEmail + ":" + newBio;
                     terminalOutput.set(client.newClientCommand(editData));
@@ -767,9 +771,10 @@ class EditGUI extends Application implements SharedResources {
         root.setPadding(new Insets(20));
 
         // Create a scene with the VBox
-        Scene scene = new Scene(root, 1000, 1000);
+        Scene scene = new Scene(root, 800, 600);
         this.primaryStage.setScene(scene);
         this.primaryStage.show();
+        primaryStage.centerOnScreen();
     }
 
     private void showUser(String username) {
@@ -950,6 +955,7 @@ class MessageGUI extends Application implements SharedResources {
         Scene scene = new Scene(root, 400, 1000);
         primaryStage.setScene(scene);
         primaryStage.show();
+        primaryStage.centerOnScreen();
     }
 
     private void showUser() {
@@ -1020,9 +1026,10 @@ class ViewGUI extends Application implements SharedResources {
         VBox root = new VBox();
         root.setPadding(new Insets(20));
 
-        Scene scene = new Scene(root, 550, 1000);
+        Scene scene = new Scene(root, 800, 600);
         primaryStage.setScene(scene);
         primaryStage.show();
+        primaryStage.centerOnScreen();
 
         userGrid.prefHeightProperty().bind(root.heightProperty().multiply(0.35));
         root.getChildren().addAll(userGrid);
@@ -1037,7 +1044,6 @@ class ViewGUI extends Application implements SharedResources {
         }
     }
 }
-
 
 
 
