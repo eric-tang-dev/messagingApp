@@ -696,8 +696,7 @@ public class ThreadedServer extends Thread implements SharedResources {
         }
 
         // Check if either username blocks the other
-        if ((blockedMap.containsKey(username1) && blockedMap.get(username1).contains(username2)) ||
-                (blockedMap.containsKey(username2) && blockedMap.get(username2).contains(username1))) {
+        if ((blockedMap.containsKey(username1) && blockedMap.get(username1).contains(username2))) {
             return true;
         }
 
