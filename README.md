@@ -1,5 +1,14 @@
 # MessagingApp Setup Guide
 
+## CHANGES MADE TO FINAL VERSION || READ BEFORE RUNNING
+
+We changed our JavaFX configuration. The main class has changed from `java_files.MainGUI` to `java_files.Client`. 
+Below are instructions to change it: 
+
+1. Click on the configuration on the top right. It should say "JavaFXApp".
+2. Click on "Edit Configurations..."
+3. Change the Main Class from `java_files.MainGUI` to `java_files.Client`.
+
 ## Instructions
 
 ### Before Running Any Part of the Program
