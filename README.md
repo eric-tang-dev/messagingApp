@@ -10,9 +10,9 @@ Below are instructions to change it:
 3. Change the Main Class from `java_files.MainGUI` to `java_files.Client`.
 
 ## Submissions
-Wyatt submitted Vocareum Workspace.
-Aneesh submitted the Presentation.
-Wyatt submitted the Report on Brightspace. 
+- Wyatt submitted Vocareum Workspace.
+- Aneesh submitted the Presentation.
+- Wyatt submitted the Report on Brightspace. 
 
 ## Instructions
 
