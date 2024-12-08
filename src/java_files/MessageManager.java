@@ -151,7 +151,7 @@ public class MessageManager extends UserManager implements MessageManagerInterfa
             if (putResponse.statusCode() == 200 || putResponse.statusCode() == 204) {
                 return "Message sent successfully.";
             } else {
-                return "Failed to send message. Status code: " + putResponse.statusCode();
+                return "Failed to send message. Status code: " + putResponse.body();
             }
         } catch (Exception e) {
             e.printStackTrace();
